@@ -1,28 +1,120 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import StudentLayout from '../../components/StudentLayout';
-import { FiFileText, FiUser, FiCheckCircle, FiClock, FiEdit, FiCalendar } from 'react-icons/fi';
+import { FiFileText, FiUser, FiCheckCircle, FiClock, FiEdit, FiCalendar, FiLoader, FiInbox } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
-
-// --- Mock Data with Deadline ---
-const mockProject = {
-  id: 'proj_01',
-  title: 'Advanced Cryptography Techniques',
-  supervisor: 'Dr. Alan Turing',
-  chapters: [
-    { id: 1, title: 'Chapter 1: Introduction', status: 'approved', deadline: null },
-    { id: 2, title: 'Chapter 2: Symmetric-Key Algorithms', status: 'approved', deadline: null },
-    { id: 3, title: 'Chapter 3: Asymmetric-Key Algorithms', status: 'reviewing', deadline: '2025-07-15' },
-    { id: 4, title: 'Chapter 4: Post-Quantum Cryptography', status: 'pending', deadline: null },
-    { id: 5, title: 'Chapter 5: Conclusion', status: 'pending', deadline: null },
-  ],
-};
+import { useAuth } from '../../context/AuthContext';
+import {
+  db,
+  collection,
+  query,
+  where,
+  onSnapshot,
+  orderBy
+} from '../../firebase/config';
+import { format } from 'date-fns'; // Import the format function
 
 const MyProjectPage = () => {
-  const [project] = useState(mockProject);
+  const { currentUser } = useAuth();
+  const [project, setProject] = useState(null);
+  const [chapters, setChapters] = useState([]);
+  const [supervisor, setSupervisor] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const progressPercentage = (project.chapters.filter(c => c.status === 'approved').length / project.chapters.length) * 100;
-  const activeChapter = useMemo(() => project.chapters.find(c => c.status === 'reviewing'), [project.chapters]);
+  // Fetch the student's active project
+  useEffect(() => {
+    if (!currentUser) {
+      setLoading(false);
+      return;
+    }
+
+    const projectQuery = query(
+      collection(db, "projects"),
+      where("studentId", "==", currentUser.uid),
+      where("status", "==", "approved")
+    );
+
+    const unsubscribeProject = onSnapshot(projectQuery, (snapshot) => {
+      if (!snapshot.empty) {
+        const projectData = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+        setProject(projectData);
+      } else {
+        setProject(null); // No active project found
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribeProject();
+  }, [currentUser]);
+
+  // Fetch chapters and supervisor info once the project is loaded
+  useEffect(() => {
+    if (!project) return;
+
+    // Fetch chapters for the project
+    const chaptersQuery = query(
+      collection(db, "chapters"),
+      where("projectId", "==", project.id),
+      orderBy("chapterNumber")
+    );
+    const unsubscribeChapters = onSnapshot(chaptersQuery, (snapshot) => {
+      const fetchedChapters = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setChapters(fetchedChapters);
+    });
+
+    // Fetch supervisor details
+    const supervisorQuery = query(collection(db, "users"), where("uid", "==", project.supervisorId));
+    const unsubscribeSupervisor = onSnapshot(supervisorQuery, (snapshot) => {
+      if (!snapshot.empty) {
+        setSupervisor(snapshot.docs[0].data());
+      }
+    });
+
+    setLoading(false);
+
+    return () => {
+      unsubscribeChapters();
+      unsubscribeSupervisor();
+    };
+  }, [project]);
+
+  const progressPercentage = useMemo(() => {
+    if (chapters.length === 0) return 0;
+    const approvedCount = chapters.filter(c => c.status === 'approved').length;
+    return (approvedCount / chapters.length) * 100;
+  }, [chapters]);
+
+  const activeChapter = useMemo(() => chapters.find(c => c.status === 'reviewing'), [chapters]);
+
+  // Safely format the deadline date
+  const formattedDeadline = useMemo(() => {
+    if (!activeChapter?.deadline) return null;
+
+    // Check if it's a Firebase Timestamp object
+    if (typeof activeChapter.deadline.toDate === 'function') {
+      return format(activeChapter.deadline.toDate(), 'MMMM d, yyyy');
+    }
+    // Otherwise, treat it as a string or Date object
+    return format(new Date(activeChapter.deadline), 'MMMM d, yyyy');
+  }, [activeChapter]);
+
+
+  if (loading) {
+    return <StudentLayout><div className="text-center p-8"><FiLoader className="animate-spin mx-auto" size={48} /></div></StudentLayout>;
+  }
+
+  if (!project) {
+    return (
+      <StudentLayout>
+        <div className="text-center py-16 bg-white rounded-xl shadow-md">
+          <FiInbox size={60} className="mx-auto text-gray-300 mb-4" />
+          <h3 className="text-xl font-semibold text-gray-700">No Active Project</h3>
+          <p className="text-gray-500 mt-2">You do not have an approved project yet. Please check the proposal page.</p>
+          <Link to="/student/proposal" className="mt-4 inline-block bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700">Go to Proposals</Link>
+        </div>
+      </StudentLayout>
+    );
+  }
 
   return (
     <StudentLayout>
@@ -32,7 +124,7 @@ const MyProjectPage = () => {
         <div className="flex items-center text-gray-600 mt-1">
           <FiUser className="mr-2" />
           <span className="font-semibold">Supervisor:</span>
-          <span className="ml-2">{project.supervisor}</span>
+          <span className="ml-2">{supervisor?.name || 'Loading...'}</span>
         </div>
       </div>
 
@@ -40,12 +132,12 @@ const MyProjectPage = () => {
       <div className="bg-white p-8 rounded-xl shadow-md">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
           <h2 className="text-xl font-bold text-gray-800">Project Progress</h2>
-          {activeChapter?.deadline && (
+          {formattedDeadline && (
             <div className="mt-4 md:mt-0 p-3 bg-yellow-100 border border-yellow-200 rounded-lg flex items-center gap-3">
               <FiCalendar className="text-yellow-600" size={20} />
               <div>
                 <p className="font-semibold text-yellow-800">Next Deadline</p>
-                <p className="text-sm text-yellow-700">{new Date(activeChapter.deadline).toLocaleDateString()}</p>
+                <p className="text-sm text-yellow-700">{formattedDeadline}</p>
               </div>
             </div>
           )}
@@ -61,7 +153,7 @@ const MyProjectPage = () => {
 
         {/* Chapters List */}
         <div className="space-y-4">
-          {project.chapters.map(chapter => {
+          {chapters.map(chapter => {
             const isApproved = chapter.status === 'approved';
             const isReviewing = chapter.status === 'reviewing';
             const isPending = chapter.status === 'pending';
