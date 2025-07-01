@@ -1,25 +1,25 @@
 
-import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import TiptapEditor from '../../components/tiptapEditor/TiptapEditor';
-import { FiCheck, FiArrowLeft, FiMessageSquare, FiX, FiSend, FiCheckCircle } from 'react-icons/fi';
-import { v4 as uuidv4 } from 'uuid';
-
-// --- Mock Data ---
-const mockProjectData = {
-  id: 'proj_01',
-  title: 'Advanced Cryptography Techniques',
-  chapters: [{ id: 3, title: 'Chapter 3: Asymmetric-Key Algorithms' }],
-  initialComments: [
-    {
-      id: 'comment-1', text: 'Is this the most accepted definition? Please cite a source.', author: 'Dr. Alan Turing',
-      highlightedText: 'key distribution problem',
-      replies: [{ author: 'Ethan Hunt', text: 'Good point, I will add a citation from the NIST publication.' }],
-      isResolved: false,
-    }
-  ],
-  initialContent: '<h1>Asymmetric-Key Algorithms</h1><p>This section covers RSA, ECC, and their mathematical underpinnings. The focus will be on how public-key cryptography solves the <mark data-comment-id="comment-1">key distribution problem</mark>.</p>'
-};
+import NotificationModal from '../../components/NotificationModal';
+import { FiCheck, FiArrowLeft, FiX, FiSend, FiLoader, FiCheckCircle } from 'react-icons/fi';
+import { useAuth } from '../../context/AuthContext';
+import {
+  db,
+  doc,
+  onSnapshot,
+  updateDoc,
+  addDoc,
+  deleteDoc,
+  arrayUnion,
+  serverTimestamp,
+  query,
+  collection,
+  where,
+  setDoc
+} from '../../firebase/config';
+import { debounce } from 'lodash';
 
 // --- Comment Input Form Component ---
 const CommentInput = ({ onSubmit, placeholder, submitLabel }) => {
@@ -33,17 +33,8 @@ const CommentInput = ({ onSubmit, placeholder, submitLabel }) => {
   };
   return (
     <form onSubmit={handleSubmit} className="flex items-center gap-2 mt-2">
-      <input
-        type="text"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder={placeholder}
-        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition text-sm"
-        autoFocus
-      />
-      <button type="submit" className="p-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700" aria-label={submitLabel}>
-        <FiSend size={16} />
-      </button>
+      <input type="text" value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition text-sm" autoFocus />
+      <button type="submit" className="p-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700" aria-label={submitLabel}><FiSend size={16} /></button>
     </form>
   );
 }
@@ -59,7 +50,7 @@ const CommentCard = ({ comment, activeCommentId, onCardClick, addReply, deleteCo
         </blockquote>
       )}
       <div className="flex justify-between items-center mb-2">
-        <p className="font-semibold text-sm text-gray-700">{comment.author}</p>
+        <p className="font-semibold text-sm text-gray-700">{comment.authorName}</p>
         <div className="flex items-center gap-2">
           {!comment.isResolved && (
             <button onClick={() => resolveComment(comment.id)} className="text-gray-400 hover:text-green-500" title="Resolve Comment"><FiCheckCircle size={16} /></button>
@@ -73,14 +64,14 @@ const CommentCard = ({ comment, activeCommentId, onCardClick, addReply, deleteCo
           <div className="mt-3 space-y-2 pl-4 border-l-2">
             {comment.replies && comment.replies.map((reply, index) => (
               <div key={index}>
-                <p className="font-semibold text-xs text-gray-600">{reply.author}</p>
+                <p className="font-semibold text-xs text-gray-600">{reply.authorName}</p>
                 <p className="text-sm text-gray-700">{reply.text}</p>
               </div>
             ))}
           </div>
           <div className="mt-2">
             {showReplyInput ? (
-              <CommentInput onSubmit={(replyText) => { addReply(comment.id, { author: 'Dr. Alan Turing', text: replyText }); setShowReplyInput(false); }} placeholder="Write a reply..." submitLabel="Send Reply" />
+              <CommentInput onSubmit={(replyText) => { addReply(comment.id, replyText); setShowReplyInput(false); }} placeholder="Write a reply..." submitLabel="Send Reply" />
             ) : (
               <button onClick={() => setShowReplyInput(true)} className="text-xs font-semibold text-teal-600 hover:underline">Reply</button>
             )}
@@ -93,17 +84,59 @@ const CommentCard = ({ comment, activeCommentId, onCardClick, addReply, deleteCo
 
 const SupervisorChapterEditorPage = () => {
   const { projectId, chapterId } = useParams();
-  const chapter = mockProjectData.chapters.find(c => c.id === parseInt(chapterId));
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
 
-  const [editorKey, setEditorKey] = useState(Date.now());
-  const [editorContent, setEditorContent] = useState(mockProjectData.initialContent);
-  const [comments, setComments] = useState(mockProjectData.initialComments);
+  const [chapter, setChapter] = useState(null);
+  const [comments, setComments] = useState([]);
+  const [editorContent, setEditorContent] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [activeCommentId, setActiveCommentId] = useState(null);
+  const [notification, setNotification] = useState({ isOpen: false, title: '', message: '' });
   const [pendingCommentInfo, setPendingCommentInfo] = useState(null);
 
-  const handleSaveChanges = () => {
-    alert("Changes saved!");
-    console.log({ content: editorContent, comments });
+  // Debounced function to save editor content to Firestore
+  const saveContent = useCallback(
+    debounce(async (content) => {
+      if (chapterId) {
+        const chapterRef = doc(db, "chapters", chapterId);
+        await updateDoc(chapterRef, { content });
+      }
+    }, 1000),
+    [chapterId]
+  );
+
+  useEffect(() => {
+    if (!chapterId) return;
+
+    const chapterRef = doc(db, "chapters", chapterId);
+    const unsubChapter = onSnapshot(chapterRef, (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        setChapter({ id: doc.id, ...data });
+        setEditorContent(data.content || `<h1>${data.title}</h1><p>Start writing here...</p>`);
+      }
+      setLoading(false);
+    });
+
+    const commentsQuery = query(collection(db, "comments"), where("chapterId", "==", chapterId));
+    const unsubComments = onSnapshot(commentsQuery, (snapshot) => {
+      const fetchedComments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setComments(fetchedComments);
+    });
+
+    return () => {
+      unsubChapter();
+      unsubComments();
+    };
+  }, [chapterId]);
+
+  const showNotification = (title, message) => setNotification({ isOpen: true, title, message, type: 'success' });
+
+  const handleEditorUpdate = (content) => {
+    setEditorContent(content);
+    saveContent(content);
   };
 
   const handleStartComment = (commentId, highlightedText) => {
@@ -111,31 +144,59 @@ const SupervisorChapterEditorPage = () => {
     setActiveCommentId(commentId);
   };
 
-  const addComment = (commentText) => {
-    setComments(prev => [...prev, {
-      id: pendingCommentInfo.id, text: commentText, author: 'Dr. Alan Turing',
-      highlightedText: pendingCommentInfo.highlightedText, replies: [], isResolved: false
-    }]);
-    setPendingCommentInfo(null);
+  const addComment = async (commentText) => {
+    if (!currentUser || !pendingCommentInfo) return;
+
+    const newComment = {
+      chapterId: chapterId,
+      projectId: projectId,
+      authorId: currentUser.uid,
+      authorName: currentUser.name,
+      highlightedText: pendingCommentInfo.highlightedText,
+      text: commentText,
+      isResolved: false,
+      createdAt: serverTimestamp(),
+      replies: []
+    };
+
+    try {
+      const commentRef = doc(db, "comments", pendingCommentInfo.id);
+      await setDoc(commentRef, newComment);
+      setPendingCommentInfo(null);
+    } catch (error) {
+      console.error("Error adding comment:", error);
+      alert("Could not add comment. Please try again.");
+    }
   };
 
-  const addReply = (commentId, reply) => {
-    setComments(prev => prev.map(c => c.id === commentId ? { ...c, replies: [...(c.replies || []), reply] } : c));
+  const addReply = async (commentId, replyText) => {
+    if (!currentUser) return;
+    const commentRef = doc(db, "comments", commentId);
+    await updateDoc(commentRef, {
+      replies: arrayUnion({
+        authorId: currentUser.uid,
+        authorName: currentUser.name,
+        text: replyText,
+        createdAt: serverTimestamp()
+      })
+    });
   };
 
-  const resolveComment = (commentId) => {
-    setComments(prev => prev.map(c => c.id === commentId ? { ...c, isResolved: true } : c));
+  const resolveComment = async (commentId) => {
+    const commentRef = doc(db, "comments", commentId);
+    await updateDoc(commentRef, { isResolved: true });
+
     const newContent = editorContent.replace(new RegExp(`<mark data-comment-id="${commentId}">([^<]+)<\/mark>`, 'g'), '$1');
-    setEditorContent(newContent);
-    setEditorKey(Date.now());
+    const chapterRef = doc(db, "chapters", chapterId);
+    await updateDoc(chapterRef, { content: newContent });
   };
 
-  const deleteComment = (commentId, isResolved) => {
-    setComments(prev => prev.filter(c => c.id !== commentId));
+  const deleteComment = async (commentId, isResolved) => {
+    await deleteDoc(doc(db, "comments", commentId));
     if (!isResolved) {
       const newContent = editorContent.replace(new RegExp(`<mark data-comment-id="${commentId}">([^<]+)<\/mark>`, 'g'), '$1');
-      setEditorContent(newContent);
-      setEditorKey(Date.now());
+      const chapterRef = doc(db, "chapters", chapterId);
+      await updateDoc(chapterRef, { content: newContent });
     }
   };
 
@@ -143,22 +204,29 @@ const SupervisorChapterEditorPage = () => {
     const editorElement = document.querySelector('.ProseMirror');
     if (editorElement) {
       const highlight = editorElement.querySelector(`mark[data-comment-id="${commentId}"]`);
-      if (highlight) {
-        highlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+      if (highlight) highlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   };
 
+  const handleSaveChanges = () => {
+    showNotification("Auto-Saved", "Your changes are saved automatically as you type.");
+  };
+
+  if (loading) {
+    return <div className="flex h-screen items-center justify-center"><FiLoader className="animate-spin text-teal-500" size={48} /></div>;
+  }
+
   return (
     <div className="p-8 bg-gray-100 min-h-screen">
-      <div className="mb-4">
-        <Link to={`/supervisor/project/${projectId}`} className="flex items-center gap-2 text-teal-600 font-semibold hover:underline"><FiArrowLeft />Back to Project</Link>
-      </div>
-
+      <NotificationModal isOpen={notification.isOpen} onClose={() => setNotification({ ...notification, isOpen: false })} title={notification.title} message={notification.message} />
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">{chapter?.title}</h1>
-        <button onClick={handleSaveChanges} className="inline-flex items-center gap-2 bg-teal-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-teal-700">
-          <FiCheck size={20} />Save Changes
+        <div>
+          <Link to={`/supervisor/project/${projectId}`} className="flex items-center gap-2 text-teal-600 font-semibold hover:underline mb-2"><FiArrowLeft />Back to Project</Link>
+          <h1 className="text-3xl font-bold text-gray-900">{chapter?.title}</h1>
+        </div>
+        <button onClick={handleSaveChanges} className="inline-flex items-center gap-2 bg-teal-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-teal-700" disabled={isSaving}>
+          {isSaving ? <FiLoader className="animate-spin" /> : <FiCheck size={20} />}
+          Save Changes
         </button>
       </div>
 
@@ -166,9 +234,8 @@ const SupervisorChapterEditorPage = () => {
         <div className="flex-grow">
           <div className="bg-white rounded-xl shadow-md">
             <TiptapEditor
-              key={editorKey}
               initialContent={editorContent}
-              onUpdate={setEditorContent}
+              onUpdate={handleEditorUpdate}
               onStartComment={handleStartComment}
             />
           </div>
@@ -183,14 +250,18 @@ const SupervisorChapterEditorPage = () => {
                   <CommentInput onSubmit={addComment} placeholder="Add your comment..." submitLabel="Add Comment" />
                 </div>
               )}
-              {comments.map(comment => (
+              {comments.length > 0 ? comments.map(comment => (
                 <CommentCard
-                  key={comment.id} comment={comment} activeCommentId={activeCommentId}
-                  onCardClick={setActiveCommentId} addReply={addReply}
-                  deleteComment={deleteComment} resolveComment={resolveComment}
+                  key={comment.id}
+                  comment={comment}
+                  activeCommentId={activeCommentId}
+                  onCardClick={setActiveCommentId}
+                  addReply={addReply}
+                  deleteComment={deleteComment}
+                  resolveComment={resolveComment}
                   onHighlightClick={handleHighlightClick}
                 />
-              ))}
+              )) : <p className="text-gray-500 text-center py-4">No comments on this chapter yet.</p>}
             </div>
           </div>
         </div>

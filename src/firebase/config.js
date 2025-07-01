@@ -5,6 +5,7 @@ import {
   createUserWithEmailAndPassword
 } from "firebase/auth";
 import {
+  arrayUnion,
   orderBy,
   getFirestore,
   collection,
@@ -56,5 +57,6 @@ export {
   writeBatch,
   createUserWithEmailAndPassword,
   serverTimestamp,
-  orderBy
+  orderBy,
+  arrayUnion
 };
