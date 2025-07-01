@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import TiptapEditor from '../../components/tiptapEditor/TiptapEditor';
-import { FiCheck, FiArrowLeft, FiX, FiSend, FiCheckCircle } from 'react-icons/fi';
+import { FiCheck, FiArrowLeft, FiMessageSquare, FiX, FiSend, FiCheckCircle } from 'react-icons/fi';
 import { v4 as uuidv4 } from 'uuid';
 
 // --- Mock Data ---
@@ -16,25 +16,34 @@ const mockProjectData = {
       highlightedText: 'key distribution problem',
       replies: [{ author: 'Ethan Hunt', text: 'Good point, I will add a citation from the NIST publication.' }],
       isResolved: false,
-    },
-    {
-      id: 'comment-2', text: 'This section feels a bit rushed. Can we expand on the practical applications of ECC?', author: 'Dr. Alan Turing',
-      highlightedText: 'RSA, ECC, and their mathematical underpinnings',
-      replies: [],
-      isResolved: false,
     }
   ],
-  initialContent: '<h1>Asymmetric-Key Algorithms</h1><p>This section covers <mark data-comment-id="comment-2">RSA, ECC, and their mathematical underpinnings</mark>. The focus will be on how public-key cryptography solves the <mark data-comment-id="comment-1">key distribution problem</mark>.</p>'
+  initialContent: '<h1>Asymmetric-Key Algorithms</h1><p>This section covers RSA, ECC, and their mathematical underpinnings. The focus will be on how public-key cryptography solves the <mark data-comment-id="comment-1">key distribution problem</mark>.</p>'
 };
 
 // --- Comment Input Form Component ---
 const CommentInput = ({ onSubmit, placeholder, submitLabel }) => {
   const [text, setText] = useState('');
-  const handleSubmit = (e) => { e.preventDefault(); if (text.trim()) { onSubmit(text); setText(''); } };
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (text.trim()) {
+      onSubmit(text);
+      setText('');
+    }
+  };
   return (
     <form onSubmit={handleSubmit} className="flex items-center gap-2 mt-2">
-      <input type="text" value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition text-sm" autoFocus />
-      <button type="submit" className="p-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700" aria-label={submitLabel}><FiSend size={16} /></button>
+      <input
+        type="text"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder={placeholder}
+        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition text-sm"
+        autoFocus
+      />
+      <button type="submit" className="p-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700" aria-label={submitLabel}>
+        <FiSend size={16} />
+      </button>
     </form>
   );
 }
@@ -59,7 +68,6 @@ const CommentCard = ({ comment, activeCommentId, onCardClick, addReply, deleteCo
         </div>
       </div>
       <p className="text-gray-800">{comment.text}</p>
-      {/* Replies Section */}
       {!comment.isResolved && (
         <>
           <div className="mt-3 space-y-2 pl-4 border-l-2">
@@ -72,7 +80,7 @@ const CommentCard = ({ comment, activeCommentId, onCardClick, addReply, deleteCo
           </div>
           <div className="mt-2">
             {showReplyInput ? (
-              <CommentInput onSubmit={(replyText) => { addReply(comment.id, { author: 'Current User', text: replyText }); setShowReplyInput(false); }} placeholder="Write a reply..." submitLabel="Send Reply" />
+              <CommentInput onSubmit={(replyText) => { addReply(comment.id, { author: 'Dr. Alan Turing', text: replyText }); setShowReplyInput(false); }} placeholder="Write a reply..." submitLabel="Send Reply" />
             ) : (
               <button onClick={() => setShowReplyInput(true)} className="text-xs font-semibold text-teal-600 hover:underline">Reply</button>
             )}
@@ -83,7 +91,7 @@ const CommentCard = ({ comment, activeCommentId, onCardClick, addReply, deleteCo
   )
 }
 
-const ChapterEditorPage = () => {
+const SupervisorChapterEditorPage = () => {
   const { projectId, chapterId } = useParams();
   const chapter = mockProjectData.chapters.find(c => c.id === parseInt(chapterId));
 
@@ -92,6 +100,11 @@ const ChapterEditorPage = () => {
   const [comments, setComments] = useState(mockProjectData.initialComments);
   const [activeCommentId, setActiveCommentId] = useState(null);
   const [pendingCommentInfo, setPendingCommentInfo] = useState(null);
+
+  const handleSaveChanges = () => {
+    alert("Changes saved!");
+    console.log({ content: editorContent, comments });
+  };
 
   const handleStartComment = (commentId, highlightedText) => {
     setPendingCommentInfo({ id: commentId, highlightedText });
@@ -111,28 +124,16 @@ const ChapterEditorPage = () => {
   };
 
   const resolveComment = (commentId) => {
-    // 1. Mark the comment as resolved in the state
     setComments(prev => prev.map(c => c.id === commentId ? { ...c, isResolved: true } : c));
-
-    // 2. Remove the highlight from the editor content
-    const newContent = editorContent.replace(
-      new RegExp(`<mark data-comment-id="${commentId}">([^<]+)<\/mark>`, 'g'),
-      '$1' // Replace the mark tag with its inner text
-    );
-
+    const newContent = editorContent.replace(new RegExp(`<mark data-comment-id="${commentId}">([^<]+)<\/mark>`, 'g'), '$1');
     setEditorContent(newContent);
-    // 3. Force the editor to re-render with the new content by changing its key
     setEditorKey(Date.now());
   };
 
   const deleteComment = (commentId, isResolved) => {
     setComments(prev => prev.filter(c => c.id !== commentId));
-    // If the comment was not resolved yet, we also need to remove its highlight
     if (!isResolved) {
-      const newContent = editorContent.replace(
-        new RegExp(`<mark data-comment-id="${commentId}">([^<]+)<\/mark>`, 'g'),
-        '$1'
-      );
+      const newContent = editorContent.replace(new RegExp(`<mark data-comment-id="${commentId}">([^<]+)<\/mark>`, 'g'), '$1');
       setEditorContent(newContent);
       setEditorKey(Date.now());
     }
@@ -150,15 +151,22 @@ const ChapterEditorPage = () => {
 
   return (
     <div className="p-8 bg-gray-100 min-h-screen">
-      <div className="mb-8">
-        <Link to={`/supervisor/project/${projectId}`} className="flex items-center gap-2 text-teal-600 font-semibold hover:underline mb-4"><FiArrowLeft />Back to Project</Link>
-        <h1 className="text-3xl font-bold text-gray-900">{chapter?.title}</h1>
+      <div className="mb-4">
+        <Link to={`/supervisor/project/${projectId}`} className="flex items-center gap-2 text-teal-600 font-semibold hover:underline"><FiArrowLeft />Back to Project</Link>
       </div>
+
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">{chapter?.title}</h1>
+        <button onClick={handleSaveChanges} className="inline-flex items-center gap-2 bg-teal-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-teal-700">
+          <FiCheck size={20} />Save Changes
+        </button>
+      </div>
+
       <div className="flex flex-col md:flex-row gap-8">
         <div className="flex-grow">
           <div className="bg-white rounded-xl shadow-md">
             <TiptapEditor
-              key={editorKey} // The key will force a re-render when it changes
+              key={editorKey}
               initialContent={editorContent}
               onUpdate={setEditorContent}
               onStartComment={handleStartComment}
@@ -187,13 +195,8 @@ const ChapterEditorPage = () => {
           </div>
         </div>
       </div>
-      <div className="flex justify-end mt-6">
-        <button className="inline-flex items-center gap-2 bg-teal-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-teal-700">
-          <FiCheck size={20} />Save All Changes
-        </button>
-      </div>
     </div>
   );
 };
 
-export default ChapterEditorPage;
+export default SupervisorChapterEditorPage;

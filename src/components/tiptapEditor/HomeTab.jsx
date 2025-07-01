@@ -1,9 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   FiBold, FiItalic, FiUnderline, FiList, FiAlignLeft,
   FiAlignCenter, FiAlignRight, FiAlignJustify,
-  FiRotateCcw, FiRotateCw, FiChevronDown
+  FiRotateCcw, FiRotateCw, FiChevronDown, FiLink, FiTrash2,
+  FiChevronRight, FiChevronLeft
 } from 'react-icons/fi';
 import {
   FaStrikethrough, FaListOl, FaSubscript, FaSuperscript,
@@ -11,8 +12,13 @@ import {
 } from 'react-icons/fa';
 
 // --- Reusable Button Component ---
-const RibbonButton = ({ editor, action, icon: Icon, label, name }) => (
-  <button onClick={action} className={`p-2 rounded-md hover:bg-gray-200 ${editor.isActive(name) ? 'bg-gray-200 text-teal-600' : 'text-gray-600'}`} title={label}>
+const RibbonButton = ({ editor, action, icon: Icon, label, name, disabled = false }) => (
+  <button
+    onClick={action}
+    className={`p-2 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed ${editor.isActive(name) ? 'bg-gray-200 text-teal-600' : 'text-gray-600'}`}
+    title={label}
+    disabled={disabled}
+  >
     <Icon size={18} />
   </button>
 );
@@ -20,14 +26,12 @@ const RibbonButton = ({ editor, action, icon: Icon, label, name }) => (
 // --- Dropdown for Styles (Headings, Paragraph) ---
 const StylesDropdown = ({ editor }) => {
   const [isOpen, setIsOpen] = useState(false);
-
   const styles = [
     { name: 'Paragraph', action: () => editor.chain().focus().setParagraph().run(), isActive: editor.isActive('paragraph') },
     { name: 'Heading 1', action: () => editor.chain().focus().toggleHeading({ level: 1 }).run(), isActive: editor.isActive('heading', { level: 1 }) },
     { name: 'Heading 2', action: () => editor.chain().focus().toggleHeading({ level: 2 }).run(), isActive: editor.isActive('heading', { level: 2 }) },
     { name: 'Heading 3', action: () => editor.chain().focus().toggleHeading({ level: 3 }).run(), isActive: editor.isActive('heading', { level: 3 }) },
   ];
-
   const activeStyle = styles.find(s => s.isActive)?.name || 'Styles';
 
   return (
@@ -52,12 +56,26 @@ const StylesDropdown = ({ editor }) => {
 
 const HomeTab = ({ editor }) => {
   if (!editor) return null;
+
+  const setLink = useCallback(() => {
+    const previousUrl = editor.getAttributes('link').href;
+    const url = window.prompt('URL', previousUrl);
+
+    if (url === null) return; // Cancelled
+    if (url === '') { // Unset link
+      editor.chain().focus().extendMarkRange('link').unsetLink().run();
+      return;
+    }
+    // Set or update link
+    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+  }, [editor]);
+
   return (
     <div className="flex flex-wrap items-center gap-4">
       {/* History Group */}
       <div className="flex items-center gap-1 border-r pr-4">
-        <RibbonButton editor={editor} action={() => editor.chain().focus().undo().run()} icon={FiRotateCcw} label="Undo" name="undo" />
-        <RibbonButton editor={editor} action={() => editor.chain().focus().redo().run()} icon={FiRotateCw} label="Redo" name="redo" />
+        <RibbonButton editor={editor} action={() => editor.chain().focus().undo().run()} icon={FiRotateCcw} label="Undo" name="undo" disabled={!editor.can().undo()} />
+        <RibbonButton editor={editor} action={() => editor.chain().focus().redo().run()} icon={FiRotateCw} label="Redo" name="redo" disabled={!editor.can().redo()} />
       </div>
 
       {/* Styles Group */}
@@ -73,24 +91,16 @@ const HomeTab = ({ editor }) => {
         <RibbonButton editor={editor} action={() => editor.chain().focus().toggleStrike().run()} icon={FaStrikethrough} label="Strikethrough" name="strike" />
         <RibbonButton editor={editor} action={() => editor.chain().focus().toggleSubscript().run()} icon={FaSubscript} label="Subscript" name="subscript" />
         <RibbonButton editor={editor} action={() => editor.chain().focus().toggleSuperscript().run()} icon={FaSuperscript} label="Superscript" name="superscript" />
-      </div>
-
-      {/* Color Group */}
-      <div className="flex items-center gap-2 border-r pr-4">
-        <div title="Text Color" className="flex items-center gap-1 p-1 rounded-md hover:bg-gray-200">
-          <FaFont className="text-gray-600" />
-          <input type="color" onInput={event => editor.chain().focus().setColor(event.target.value).run()} value={editor.getAttributes('textStyle').color || '#000000'} className="w-6 h-6 border-none bg-transparent" />
-        </div>
-        <div title="Highlight Color" className="flex items-center gap-1 p-1 rounded-md hover:bg-gray-200">
-          <FaHighlighter className="text-gray-600" />
-          <input type="color" onInput={event => editor.chain().focus().toggleHighlight({ color: event.target.value }).run()} value={editor.getAttributes('highlight').color || '#ffffff'} className="w-6 h-6 border-none bg-transparent" />
-        </div>
+        <RibbonButton editor={editor} action={setLink} icon={FiLink} label="Add Link" name="link" />
+        <RibbonButton editor={editor} action={() => editor.chain().focus().unsetAllMarks().run()} icon={FiTrash2} label="Clear Formatting" name="clear" />
       </div>
 
       {/* Paragraph Group */}
       <div className="flex items-center gap-1">
         <RibbonButton editor={editor} action={() => editor.chain().focus().toggleBulletList().run()} icon={FiList} label="Bullet List" name="bulletList" />
         <RibbonButton editor={editor} action={() => editor.chain().focus().toggleOrderedList().run()} icon={FaListOl} label="Numbered List" name="orderedList" />
+        <RibbonButton editor={editor} action={() => editor.chain().focus().sinkListItem('listItem').run()} icon={FiChevronRight} label="Indent" name="indent" disabled={!editor.can().sinkListItem('listItem')} />
+        <RibbonButton editor={editor} action={() => editor.chain().focus().liftListItem('listItem').run()} icon={FiChevronLeft} label="Outdent" name="outdent" disabled={!editor.can().liftListItem('listItem')} />
         <RibbonButton editor={editor} action={() => editor.chain().focus().setTextAlign('left').run()} icon={FiAlignLeft} label="Align Left" name={{ textAlign: 'left' }} />
         <RibbonButton editor={editor} action={() => editor.chain().focus().setTextAlign('center').run()} icon={FiAlignCenter} label="Align Center" name={{ textAlign: 'center' }} />
         <RibbonButton editor={editor} action={() => editor.chain().focus().setTextAlign('right').run()} icon={FiAlignRight} label="Align Right" name={{ textAlign: 'right' }} />

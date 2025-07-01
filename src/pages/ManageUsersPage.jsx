@@ -1,151 +1,175 @@
 
-import React, { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
 import AdminLayout from '../components/AdminLayout';
-import { FiEdit, FiTrash2, FiSearch, FiUserPlus, FiChevronLeft, FiChevronRight, FiUploadCloud, FiUser, FiMail, FiUsers } from 'react-icons/fi';
+import NotificationModal from '../components/NotificationModal'
+import ConfirmationModal from '../components/ConfirmationModal'
+import UserModal from '../components/UserModal'
+import { FiUserPlus, FiEdit, FiTrash2, FiLoader, FiSearch, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import {
+  db,
+  auth,
+  collection,
+  query,
+  where,
+  onSnapshot,
+  setDoc,
+  doc,
+  updateDoc,
+  deleteDoc,
+  createUserWithEmailAndPassword
+} from '../firebase/config';
 
-// --- Reusable Add User Modal Component ---
-const AddUserModal = ({ isOpen, onClose, role }) => {
-  const [addMethod, setAddMethod] = useState('manual'); // 'manual' or 'upload'
-
-  if (!isOpen) return null;
-
-  // Mock Data for supervisor dropdown
-  const supervisors = [
-    { id: 1, name: 'Dr. Ada Lovelace' },
-    { id: 2, name: 'Dr. Alan Turing' },
-    { id: 3, name: 'Dr. Grace Hopper' },
-  ];
-
-  const handleFormSubmit = (e) => {
-    e.preventDefault();
-    // Logic to add user based on form data
-    alert('User added successfully!');
-    onClose();
-  };
-
-  const handleFileUpload = (e) => {
-    e.preventDefault();
-    // Logic to process uploaded file
-    alert('File uploaded for processing!');
-    onClose();
-  }
-
-  return (
-    <div className="fixed inset-0 bg-gray-500 bg-opacity-30 backdrop-blur-md z-50 flex justify-center items-center p-4">
-      <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Add New {role === 'students' ? 'Student' : 'Supervisor'}</h2>
-        {/* Modal Tabs */}
-        <div className="flex border-b mb-6">
-          <button onClick={() => setAddMethod('manual')} className={`py-2 px-4 font-medium ${addMethod === 'manual' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-500'}`}>
-            Manual Entry
-          </button>
-          <button onClick={() => setAddMethod('upload')} className={`py-2 px-4 font-medium ${addMethod === 'upload' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-500'}`}>
-            Upload Excel File
-          </button>
-        </div>
-
-        {/* Conditional Form */}
-        {addMethod === 'manual' ? (
-          <form onSubmit={handleFormSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-              <div className="relative"><FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} /><input type="text" name="fullName" id="fullName" className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g., John Doe" required /></div>
-            </div>
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-              <div className="relative"><FiMail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} /><input type="email" name="email" id="email" className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="user@example.com" required /></div>
-            </div>
-            {role === 'students' && (
-              <div>
-                <label htmlFor="supervisor" className="block text-sm font-medium text-gray-700 mb-2">Assign Supervisor</label>
-                <div className="relative"><FiUsers className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} /><select name="supervisor" id="supervisor" className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none appearance-none" required><option value="" disabled selected>Choose a supervisor</option>{supervisors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
-              </div>
-            )}
-            <div className="flex justify-end gap-4 pt-4">
-              <button type="button" onClick={onClose} className="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg font-semibold hover:bg-gray-300">Cancel</button>
-              <button type="submit" className="bg-purple-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-purple-700">Add User</button>
-            </div>
-          </form>
-        ) : (
-          <form onSubmit={handleFileUpload} className="text-center">
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 flex flex-col items-center">
-              <FiUploadCloud size={60} className="text-gray-400 mb-4" />
-              <p className="font-semibold text-gray-700">Drag and drop your Excel file here</p>
-              <p className="text-sm text-gray-500 mt-1">or</p>
-              <input type="file" id="file-upload" className="sr-only" accept=".xlsx, .xls, .csv" />
-              <label htmlFor="file-upload" className="mt-4 cursor-pointer bg-purple-100 text-purple-700 px-4 py-2 rounded-lg font-semibold hover:bg-purple-200">
-                Browse File
-              </label>
-            </div>
-            <p className="text-sm text-gray-500 mt-4">Don't have a template? <a href="#" className="text-purple-600 font-semibold hover:underline">Download it here.</a></p>
-            <div className="flex justify-end gap-4 pt-6">
-              <button type="button" onClick={onClose} className="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg font-semibold hover:bg-gray-300">Cancel</button>
-              <button type="submit" className="bg-purple-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-purple-700">Upload and Add</button>
-            </div>
-          </form>
-        )}
-      </div>
-    </div>
-  );
-};
-
-
-// --- Mock Data ---
-const users = [
-  { id: 1, name: 'Alice Johnson', email: 'alice.j@university.edu', role: 'Student', supervisor: 'Dr. Alan Turing' }, { id: 3, name: 'Bob Williams', email: 'bob.w@university.edu', role: 'Student', supervisor: 'Dr. Grace Hopper' }, { id: 4, name: 'Charlie Brown', email: 'charlie.b@university.edu', role: 'Student', supervisor: 'Dr. Alan Turing' }, { id: 6, name: 'Diana Prince', email: 'diana.p@university.edu', role: 'Student', supervisor: 'Dr. Ada Lovelace' }, { id: 7, name: 'Ethan Hunt', email: 'ethan.h@university.edu', role: 'Student', supervisor: 'Dr. Grace Hopper' }, { id: 9, name: 'Fiona Glenanne', email: 'fiona.g@university.edu', role: 'Student', supervisor: 'Dr. Ada Lovelace' }, { id: 11, name: 'George Costanza', email: 'george.c@university.edu', role: 'Student', supervisor: 'Dr. Alan Turing' }, { id: 2, name: 'Dr. Alan Turing', email: 'alan.t@university.edu', role: 'Supervisor', supervisor: null }, { id: 5, name: 'Dr. Grace Hopper', email: 'grace.h@university.edu', role: 'Supervisor', supervisor: null }, { id: 8, name: 'Dr. Ada Lovelace', email: 'ada.l@university.edu', role: 'Supervisor', supervisor: null }, { id: 10, name: 'Dr. Ian Malcolm', email: 'ian.m@university.edu', role: 'Supervisor', supervisor: null },
-];
-
+// --- Pagination Component ---
 const Pagination = ({ currentPage, totalPages, onPageChange }) => {
   if (totalPages <= 1) return null;
   return (
     <div className="flex justify-center items-center p-4">
       <button onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} className="p-2 disabled:opacity-50"><FiChevronLeft /></button>
-      <div className="flex items-center gap-2 mx-4"><span>Page {currentPage} of {totalPages}</span></div>
+      <span className="mx-4 text-sm">Page {currentPage} of {totalPages}</span>
       <button onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className="p-2 disabled:opacity-50"><FiChevronRight /></button>
     </div>
   );
 };
 
+// --- Main Manage Users Page ---
 const ManageUsersPage = () => {
+  const [modalState, setModalState] = useState({ isOpen: false, mode: 'add', data: null });
+  const [deleteConfirmState, setDeleteConfirmState] = useState({ isOpen: false, user: null });
+  const [notification, setNotification] = useState({ isOpen: false, title: '', message: '', type: 'success' });
+  const [users, setUsers] = useState([]);
+  const [supervisors, setSupervisors] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('students');
+  const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const usersPerPage = 5;
 
-  const filteredUsers = useMemo(() => users.filter(user => user.role.toLowerCase() === activeTab.slice(0, -1)), [activeTab]);
+  const showNotification = (title, message, type = 'success') => setNotification({ isOpen: true, title, message, type });
+
+  useEffect(() => {
+    const q = query(collection(db, "users"), where("role", "in", ["student", "supervisor"]));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const fetchedUsers = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setUsers(fetchedUsers);
+      setSupervisors(fetchedUsers.filter(u => u.role === 'supervisor'));
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const filteredUsers = useMemo(() => {
+    const roleToFilter = activeTab.slice(0, -1);
+    return users.filter(user =>
+      user.role === roleToFilter &&
+      (user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  }, [users, activeTab, searchTerm]);
+
   const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
   const currentUsers = filteredUsers.slice((currentPage - 1) * usersPerPage, currentPage * usersPerPage);
 
+  const handleSaveUser = async (userData, userId) => {
+    if (modalState.mode === 'edit') {
+      const userRef = doc(db, "users", userId);
+      await updateDoc(userRef, {
+        name: userData.name,
+        regNumber: userData.regNumber,
+        assignedSupervisorId: userData.assignedSupervisorId
+      });
+      showNotification('Success', `User "${userData.name}" has been updated.`);
+    } else {
+      const userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
+      const user = userCredential.user;
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        name: userData.name,
+        email: userData.email,
+        role: userData.role,
+        regNumber: userData.role === 'student' ? userData.regNumber : null,
+        assignedSupervisorId: userData.role === 'student' ? userData.assignedSupervisorId : null,
+      });
+      showNotification('Success', `User "${userData.name}" has been created successfully.`);
+    }
+  };
+
+  const handleAddUsersFromFile = async (usersFromFile, role) => {
+    showNotification('Processing...', `Your file is being processed. This might take a moment.`, 'info');
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const user of usersFromFile) {
+      try {
+        if (user.email && user.password && user.name) {
+          await handleSaveUser({ ...user, role });
+          successCount++;
+        }
+      } catch (error) {
+        errorCount++;
+        console.error(`Failed to add user ${user.email}:`, error.message);
+      }
+    }
+    showNotification('Processing Complete', `${successCount} users added successfully. ${errorCount} failed.`, 'success');
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteConfirmState.user) return;
+    await deleteDoc(doc(db, "users", deleteConfirmState.user.id));
+    showNotification('Success', `User "${deleteConfirmState.user.name}" has been deleted.`, 'success');
+    setDeleteConfirmState({ isOpen: false, user: null });
+  };
+
+  const openModal = (mode = 'add', userData = null) => {
+    setModalState({ isOpen: true, mode, data: userData });
+  };
+
   return (
     <AdminLayout>
-      <AddUserModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} role={activeTab} />
-      <div className="flex justify-between items-center mb-6">
+      <NotificationModal isOpen={notification.isOpen} onClose={() => setNotification({ ...notification, isOpen: false })} title={notification.title} message={notification.message} type={notification.type} />
+      <UserModal
+        isOpen={modalState.isOpen}
+        onClose={() => setModalState({ isOpen: false, mode: 'add', data: null })}
+        onSave={handleSaveUser}
+        onAddUsersFromFile={handleAddUsersFromFile} // This prop is now correctly passed
+        userData={modalState.data}
+        isEditMode={modalState.mode === 'edit'}
+        supervisors={supervisors}
+        initialRole={activeTab.slice(0, -1)}
+      />
+      <ConfirmationModal isOpen={deleteConfirmState.isOpen} onClose={() => setDeleteConfirmState({ isOpen: false, user: null })} onConfirm={handleDeleteUser} title="Delete User?" message={`Are you sure you want to delete "${deleteConfirmState.user?.name}"? This action cannot be undone.`} />
+
+      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
         <h1 className="text-3xl font-bold text-gray-900">Manage Users</h1>
-        <button onClick={() => setIsModalOpen(true)} className="inline-flex items-center gap-2 bg-purple-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-purple-700 transition-colors">
-          <FiUserPlus size={20} />
-          {activeTab === 'students' ? 'Add Student' : 'Add Supervisor'}
-        </button>
+        <div className="w-full md:w-auto flex gap-4">
+          <div className="relative flex-grow"><FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" /><input type="text" placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 border rounded-lg focus:ring-purple-500" /></div>
+          <button onClick={() => openModal('add')} className="inline-flex items-center gap-2 bg-purple-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-purple-700">
+            <FiUserPlus />
+            {activeTab === 'students' ? 'Add Student' : 'Add Supervisor'}
+          </button>
+        </div>
       </div>
 
       <div className="mb-6 flex border-b"><button onClick={() => { setActiveTab('students'); setCurrentPage(1); }} className={`py-2 px-4 text-lg font-medium ${activeTab === 'students' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-500'}`}>Students</button><button onClick={() => { setActiveTab('supervisors'); setCurrentPage(1); }} className={`py-2 px-4 text-lg font-medium ${activeTab === 'supervisors' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-500'}`}>Supervisors</button></div>
 
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left"><thead className="bg-gray-50 border-b"><tr><th className="p-4 text-sm font-semibold text-gray-600">Name</th><th className="p-4 text-sm font-semibold text-gray-600">Email</th><th className="p-4 text-sm font-semibold text-gray-600">{activeTab === 'students' ? 'Assigned Supervisor' : 'Assigned Students'}</th><th className="p-4 text-sm font-semibold text-gray-600">Actions</th></tr></thead>
-            <tbody>
-              {currentUsers.map((user) => (
-                <tr key={user.id} className="border-b last:border-b-0">
-                  <td className="p-4 font-medium text-gray-900">{user.name}</td>
-                  <td className="p-4 text-gray-600">{user.email}</td>
-                  <td className="p-4 text-gray-600">{user.supervisor || 'N/A'}</td>
-                  <td className="p-4"><div className="flex gap-4"><button className="text-gray-500 hover:text-purple-600"><FiEdit size={18} /></button><button className="text-gray-500 hover:text-red-600"><FiTrash2 size={18} /></button></div></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+        {loading ? <div className="p-8 text-center flex justify-center items-center gap-2"><FiLoader className="animate-spin" /><span>Loading Users...</span></div> : (
+          <>
+            <table className="w-full text-left">
+              <thead className="bg-gray-50"><tr><th className="p-4 font-semibold">Name</th><th className="p-4 font-semibold">Email</th><th className="p-4 font-semibold">{activeTab === 'students' ? 'Supervisor' : 'Role'}</th><th className="p-4 font-semibold">Actions</th></tr></thead>
+              <tbody>
+                {currentUsers.map(user => (
+                  <tr key={user.id} className="border-b last:border-b-0">
+                    <td className="p-4 font-medium">{user.name}</td>
+                    <td className="p-4 text-gray-600">{user.email}</td>
+                    <td className="p-4 text-gray-600">{activeTab === 'students' ? (supervisors.find(s => s.id === user.assignedSupervisorId)?.name || 'N/A') : user.role}</td>
+                    <td className="p-4"><div className="flex gap-4"><button onClick={() => openModal('edit', user)} className="text-gray-500 hover:text-purple-600"><FiEdit /></button><button onClick={() => setDeleteConfirmState({ isOpen: true, user })} className="text-gray-500 hover:text-red-600"><FiTrash2 /></button></div></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+          </>
+        )}
       </div>
     </AdminLayout>
   );
