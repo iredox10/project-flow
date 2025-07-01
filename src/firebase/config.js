@@ -5,6 +5,7 @@ import {
   createUserWithEmailAndPassword
 } from "firebase/auth";
 import {
+  orderBy,
   getFirestore,
   collection,
   query,
@@ -16,7 +17,8 @@ import {
   updateDoc,
   deleteDoc,
   getDoc,
-  writeBatch
+  writeBatch,
+  serverTimestamp
 } from "firebase/firestore";
 
 // Your web app's Firebase configuration
@@ -52,5 +54,7 @@ export {
   deleteDoc,
   getDoc,
   writeBatch,
-  createUserWithEmailAndPassword
+  createUserWithEmailAndPassword,
+  serverTimestamp,
+  orderBy
 };

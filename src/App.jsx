@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-
+import { AuthProvider } from './context/AuthContext'; // Import the provider
 // Page Imports
 import LandingPage from './pages/LandingPage';
 // Student Pages
@@ -27,37 +27,39 @@ import ManageAdminsPage from './pages/super-admin/ManageAdminsPage';
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Public Route */}
-        <Route path="/" element={<LandingPage />} />
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public Route */}
+          <Route path="/" element={<LandingPage />} />
 
-        {/* --- Student Routes --- */}
-        <Route path="/student/dashboard" element={<StudentDashboard />} />
-        <Route path="/student/proposal" element={<ProposalPage />} />
-        <Route path="/student/my-project" element={<MyProjectPage />} />
-        <Route path="/student/project/:projectId/chapter/:chapterId" element={<StudentChapterEditorPage />} />
-        <Route path="/student/profile" element={<ProfilePage />} />
+          {/* --- Student Routes --- */}
+          <Route path="/student/dashboard" element={<StudentDashboard />} />
+          <Route path="/student/proposal" element={<ProposalPage />} />
+          <Route path="/student/my-project" element={<MyProjectPage />} />
+          <Route path="/student/project/:projectId/chapter/:chapterId" element={<StudentChapterEditorPage />} />
+          <Route path="/student/profile" element={<ProfilePage />} />
 
-        {/* --- Admin Routes --- */}
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        <Route path="/admin/users" element={<ManageUsersPage />} />
-        <Route path="/admin/assign-supervisor" element={<AssignSupervisorPage />} />
+          {/* --- Admin Routes --- */}
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/users" element={<ManageUsersPage />} />
+          <Route path="/admin/assign-supervisor" element={<AssignSupervisorPage />} />
 
-        {/* --- Supervisor Routes --- */}
-        <Route path="/supervisor/dashboard" element={<SupervisorDashboard />} />
-        <Route path="/supervisor/proposals" element={<ProposalsPage />} />
-        <Route path="/supervisor/proposal/:id" element={<ReviewProposalPage />} />
-        <Route path="/supervisor/projects" element={<AllProjectsPage />} />
-        <Route path="/supervisor/project/:id" element={<ViewProjectPage />} />
-        <Route path="/supervisor/project/:projectId/chapter/:chapterId" element={<SupervisorChapterEditorPage />} />
+          {/* --- Supervisor Routes --- */}
+          <Route path="/supervisor/dashboard" element={<SupervisorDashboard />} />
+          <Route path="/supervisor/proposals" element={<ProposalsPage />} />
+          <Route path="/supervisor/proposal/:id" element={<ReviewProposalPage />} />
+          <Route path="/supervisor/projects" element={<AllProjectsPage />} />
+          <Route path="/supervisor/project/:id" element={<ViewProjectPage />} />
+          <Route path="/supervisor/project/:projectId/chapter/:chapterId" element={<SupervisorChapterEditorPage />} />
 
-        {/* --- Super Admin Routes --- */}
-        <Route path="/super-admin/dashboard" element={<SuperAdminDashboard />} />
-        <Route path="/super-admin/manage-admins" element={<ManageAdminsPage />} />
+          {/* --- Super Admin Routes --- */}
+          <Route path="/super-admin/dashboard" element={<SuperAdminDashboard />} />
+          <Route path="/super-admin/manage-admins" element={<ManageAdminsPage />} />
 
-      </Routes>
-    </BrowserRouter>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 
