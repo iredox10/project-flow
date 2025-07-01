@@ -1,53 +1,89 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import AdminLayout from '../components/AdminLayout';
-import { FiSearch, FiUserCheck, FiUserPlus, FiUsers } from 'react-icons/fi';
-
-// --- Mock Data: Simulating a larger user base ---
-const allSupervisors = [
-  { id: 1, name: 'Dr. Ada Lovelace' }, { id: 2, name: 'Dr. Alan Turing' }, { id: 3, name: 'Dr. Grace Hopper' }, { id: 4, name: 'Dr. Ian Malcolm' }, { id: 5, name: 'Dr. Ellie Sattler' },
-];
-
-const allStudents = [
-  { id: 101, name: 'Alice Johnson', supervisorId: 1 }, { id: 102, name: 'Bob Williams', supervisorId: 2 }, { id: 103, name: 'Charlie Brown', supervisorId: 1 }, { id: 104, name: 'Diana Prince', supervisorId: 3 }, { id: 105, name: 'Ethan Hunt', supervisorId: null }, { id: 106, name: 'Fiona Glenanne', supervisorId: null }, { id: 107, 'name': 'George Costanza', supervisorId: 2 }, { id: 108, name: 'Harry Potter', supervisorId: null }, { id: 109, name: 'Irene Adler', supervisorId: 1 }, { id: 110, name: 'John Doe', supervisorId: null },
-];
-
+import NotificationModal from '../components/NotificationModal';
+import { FiLink, FiCheck, FiUser, FiSearch, FiUsers, FiLoader, FiUserCheck } from 'react-icons/fi';
+import {
+  db,
+  collection,
+  query,
+  where,
+  onSnapshot,
+  doc,
+  updateDoc
+} from '../firebase/config';
 
 const AssignSupervisorPage = () => {
-  const [students, setStudents] = useState(allStudents);
+  const [students, setStudents] = useState([]);
+  const [supervisors, setSupervisors] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedSupervisorId, setSelectedSupervisorId] = useState(null);
   const [supervisorSearch, setSupervisorSearch] = useState('');
   const [studentSearch, setStudentSearch] = useState('');
+  const [notification, setNotification] = useState({ isOpen: false, title: '', message: '' });
 
-  const handleAssign = (studentId) => {
-    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, supervisorId: selectedSupervisorId } : s));
+  // Fetch all students and supervisors from Firestore
+  useEffect(() => {
+    const usersQuery = query(collection(db, "users"), where("role", "in", ["student", "supervisor"]));
+
+    const unsubscribe = onSnapshot(usersQuery, (querySnapshot) => {
+      const fetchedUsers = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setStudents(fetchedUsers.filter(u => u.role === 'student'));
+      setSupervisors(fetchedUsers.filter(u => u.role === 'supervisor'));
+      setLoading(false);
+    });
+
+    return () => unsubscribe(); // Cleanup listener on unmount
+  }, []);
+
+  const showNotification = (title, message) => {
+    setNotification({ isOpen: true, title, message, type: 'success' });
   };
 
-  const handleUnassign = (studentId) => {
-    setStudents(prev => prev.map(s => s.id === studentId ? { ...s, supervisorId: null } : s));
+  const handleAssign = async (studentId, supervisorId) => {
+    if (!studentId || !supervisorId) return;
+    const studentRef = doc(db, "users", studentId);
+    await updateDoc(studentRef, {
+      assignedSupervisorId: supervisorId
+    });
+    showNotification('Success!', 'Supervisor has been assigned successfully.');
+  };
+
+  const handleUnassign = async (studentId) => {
+    const studentRef = doc(db, "users", studentId);
+    await updateDoc(studentRef, {
+      assignedSupervisorId: null
+    });
+    showNotification('Success!', 'Supervisor has been unassigned.');
   };
 
   const filteredSupervisors = useMemo(() =>
-    allSupervisors.filter(sup => sup.name.toLowerCase().includes(supervisorSearch.toLowerCase())),
-    [supervisorSearch]
+    supervisors.filter(sup => sup.name.toLowerCase().includes(supervisorSearch.toLowerCase())),
+    [supervisors, supervisorSearch]
   );
 
   const { assignedStudents, unassignedStudents } = useMemo(() => {
     const assigned = students
-      .filter(s => s.supervisorId === selectedSupervisorId)
+      .filter(s => s.assignedSupervisorId === selectedSupervisorId)
       .filter(s => s.name.toLowerCase().includes(studentSearch.toLowerCase()));
 
     const unassigned = students
-      .filter(s => s.supervisorId === null)
+      .filter(s => !s.assignedSupervisorId)
       .filter(s => s.name.toLowerCase().includes(studentSearch.toLowerCase()));
 
     return { assignedStudents: assigned, unassignedStudents: unassigned };
   }, [selectedSupervisorId, students, studentSearch]);
 
-  const selectedSupervisor = allSupervisors.find(s => s.id === selectedSupervisorId);
+  const selectedSupervisor = supervisors.find(s => s.id === selectedSupervisorId);
 
   return (
     <AdminLayout>
+      <NotificationModal
+        isOpen={notification.isOpen}
+        onClose={() => setNotification({ ...notification, isOpen: false })}
+        title={notification.title}
+        message={notification.message}
+      />
       <h1 className="text-3xl font-bold text-gray-900 mb-2">Assign Supervisors</h1>
       <p className="text-gray-600 mb-8">Select a supervisor from the left panel to manage their students.</p>
 
@@ -60,8 +96,8 @@ const AssignSupervisorPage = () => {
             <input type="text" placeholder="Search supervisors..." onChange={(e) => setSupervisorSearch(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" />
           </div>
           <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-            {filteredSupervisors.map(supervisor => {
-              const studentCount = students.filter(s => s.supervisorId === supervisor.id).length;
+            {loading ? <FiLoader className="animate-spin mx-auto mt-8" /> : filteredSupervisors.map(supervisor => {
+              const studentCount = students.filter(s => s.assignedSupervisorId === supervisor.id).length;
               return (
                 <button key={supervisor.id} onClick={() => setSelectedSupervisorId(supervisor.id)} className={`w-full text-left p-4 rounded-lg flex justify-between items-center transition-colors ${selectedSupervisorId === supervisor.id ? 'bg-purple-600 text-white' : 'hover:bg-gray-100'}`}>
                   <div>
@@ -91,7 +127,7 @@ const AssignSupervisorPage = () => {
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {assignedStudents.length > 0 ? assignedStudents.map(student => (
                     <div key={student.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <span>{student.name}</span>
+                      <span>{student.name} ({student.regNumber || 'N/A'})</span>
                       <button onClick={() => handleUnassign(student.id)} className="text-red-500 hover:text-red-700 font-semibold">Unassign</button>
                     </div>
                   )) : <p className="text-gray-500 text-center py-4">No students assigned yet.</p>}
@@ -104,8 +140,8 @@ const AssignSupervisorPage = () => {
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {unassignedStudents.length > 0 ? unassignedStudents.map(student => (
                     <div key={student.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <span>{student.name}</span>
-                      <button onClick={() => handleAssign(student.id)} className="text-green-600 hover:text-green-800 font-semibold">Assign</button>
+                      <span>{student.name} ({student.regNumber || 'N/A'})</span>
+                      <button onClick={() => handleAssign(student.id, selectedSupervisorId)} className="text-green-600 hover:text-green-800 font-semibold">Assign</button>
                     </div>
                   )) : <p className="text-gray-500 text-center py-4">No unassigned students available.</p>}
                 </div>
