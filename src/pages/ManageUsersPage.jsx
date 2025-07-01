@@ -93,25 +93,6 @@ const ManageUsersPage = () => {
     }
   };
 
-  const handleAddUsersFromFile = async (usersFromFile, role) => {
-    showNotification('Processing...', `Your file is being processed. This might take a moment.`, 'info');
-    let successCount = 0;
-    let errorCount = 0;
-
-    for (const user of usersFromFile) {
-      try {
-        if (user.email && user.password && user.name) {
-          await handleSaveUser({ ...user, role });
-          successCount++;
-        }
-      } catch (error) {
-        errorCount++;
-        console.error(`Failed to add user ${user.email}:`, error.message);
-      }
-    }
-    showNotification('Processing Complete', `${successCount} users added successfully. ${errorCount} failed.`, 'success');
-  };
-
   const handleDeleteUser = async () => {
     if (!deleteConfirmState.user) return;
     await deleteDoc(doc(db, "users", deleteConfirmState.user.id));
@@ -130,7 +111,7 @@ const ManageUsersPage = () => {
         isOpen={modalState.isOpen}
         onClose={() => setModalState({ isOpen: false, mode: 'add', data: null })}
         onSave={handleSaveUser}
-        onAddUsersFromFile={handleAddUsersFromFile} // This prop is now correctly passed
+        // onAddUsersFromFile={handleAddUsersFromFile} // This can be re-added if needed
         userData={modalState.data}
         isEditMode={modalState.mode === 'edit'}
         supervisors={supervisors}
@@ -155,14 +136,33 @@ const ManageUsersPage = () => {
         {loading ? <div className="p-8 text-center flex justify-center items-center gap-2"><FiLoader className="animate-spin" /><span>Loading Users...</span></div> : (
           <>
             <table className="w-full text-left">
-              <thead className="bg-gray-50"><tr><th className="p-4 font-semibold">Name</th><th className="p-4 font-semibold">Email</th><th className="p-4 font-semibold">{activeTab === 'students' ? 'Supervisor' : 'Role'}</th><th className="p-4 font-semibold">Actions</th></tr></thead>
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="p-4 font-semibold text-gray-600">Name</th>
+                  {activeTab === 'students' && <th className="p-4 font-semibold text-gray-600">Reg. Number</th>}
+                  <th className="p-4 font-semibold text-gray-600">Email</th>
+                  <th className="p-4 font-semibold text-gray-600">{activeTab === 'students' ? 'Supervisor' : 'Assigned Students'}</th>
+                  <th className="p-4 font-semibold text-gray-600">Actions</th>
+                </tr>
+              </thead>
               <tbody>
                 {currentUsers.map(user => (
                   <tr key={user.id} className="border-b last:border-b-0">
                     <td className="p-4 font-medium">{user.name}</td>
+                    {activeTab === 'students' && <td className="p-4 text-gray-600">{user.regNumber || 'N/A'}</td>}
                     <td className="p-4 text-gray-600">{user.email}</td>
-                    <td className="p-4 text-gray-600">{activeTab === 'students' ? (supervisors.find(s => s.id === user.assignedSupervisorId)?.name || 'N/A') : user.role}</td>
-                    <td className="p-4"><div className="flex gap-4"><button onClick={() => openModal('edit', user)} className="text-gray-500 hover:text-purple-600"><FiEdit /></button><button onClick={() => setDeleteConfirmState({ isOpen: true, user })} className="text-gray-500 hover:text-red-600"><FiTrash2 /></button></div></td>
+                    <td className="p-4 text-gray-600">
+                      {activeTab === 'students'
+                        ? (supervisors.find(s => s.id === user.assignedSupervisorId)?.name || 'N/A')
+                        : (users.filter(s => s.role === 'student' && s.assignedSupervisorId === user.id).length)
+                      }
+                    </td>
+                    <td className="p-4">
+                      <div className="flex gap-4">
+                        <button onClick={() => openModal('edit', user)} className="text-gray-500 hover:text-purple-600"><FiEdit /></button>
+                        <button onClick={() => setDeleteConfirmState({ isOpen: true, user })} className="text-gray-500 hover:text-red-600"><FiTrash2 /></button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
