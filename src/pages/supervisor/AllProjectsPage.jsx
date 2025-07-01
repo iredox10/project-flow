@@ -1,40 +1,22 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import SupervisorLayout from '../../components/SupervisorLayout';
-import { FiSearch, FiFileText, FiUser, FiMoreVertical } from 'react-icons/fi';
-
-// --- Mock Data ---
-// In a real app, this data would be fetched from your backend API
-const mockProjects = [
-  {
-    id: 'proj_01',
-    title: 'Advanced Cryptography Techniques',
-    studentName: 'Ethan Hunt',
-    chaptersSubmitted: 3,
-    totalChapters: 5,
-    lastActivity: 'Chapter 3 submitted - 2 days ago'
-  },
-  {
-    id: 'proj_02',
-    title: 'The Role of AI in Renewable Energy Grids',
-    studentName: 'Alice Johnson',
-    chaptersSubmitted: 1,
-    totalChapters: 5,
-    lastActivity: 'Chapter 1 feedback provided - 5 days ago'
-  },
-  {
-    id: 'proj_03',
-    title: 'A Study on Quantum Entanglement Applications',
-    studentName: 'Charlie Brown',
-    chaptersSubmitted: 5,
-    totalChapters: 5,
-    lastActivity: 'Project Completed - 1 week ago'
-  },
-];
+import { FiSearch, FiFileText, FiUser, FiMoreVertical, FiLoader, FiInbox } from 'react-icons/fi';
+import { useAuth } from '../../context/AuthContext';
+import {
+  db,
+  collection,
+  query,
+  where,
+  onSnapshot,
+  orderBy
+} from '../../firebase/config';
 
 const ProjectCard = ({ project }) => {
-  const progressPercentage = (project.chaptersSubmitted / project.totalChapters) * 100;
+  // A simple progress calculation for display purposes
+  const progressPercentage = project.status === 'approved' ? 50 : project.status === 'pending' ? 10 : 0;
+
   return (
     <div className="bg-white p-6 rounded-xl shadow-md flex flex-col justify-between hover:shadow-lg transition-shadow">
       <div>
@@ -48,12 +30,17 @@ const ProjectCard = ({ project }) => {
           <FiUser className="mr-2" />
           <span>{project.studentName}</span>
         </div>
-        <p className="text-sm text-gray-600 mb-4">{project.lastActivity}</p>
+        <p className={`text-sm font-medium px-2 py-0.5 inline-block rounded-full mt-1 
+                    ${project.status === 'approved' ? 'bg-green-100 text-green-700' :
+            project.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+              'bg-red-100 text-red-700'}`}
+        >
+          Status: {project.status}
+        </p>
       </div>
-      <div>
+      <div className="mt-6">
         <div className="flex justify-between items-center text-sm text-gray-500 mb-2">
           <span>Progress</span>
-          <span>{project.chaptersSubmitted} / {project.totalChapters} Chapters</span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2.5">
           <div className="bg-teal-600 h-2.5 rounded-full" style={{ width: `${progressPercentage}%` }}></div>
@@ -68,13 +55,40 @@ const ProjectCard = ({ project }) => {
 
 
 const AllProjectsPage = () => {
+  const { currentUser } = useAuth();
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
+  useEffect(() => {
+    if (!currentUser) {
+      setLoading(false);
+      return;
+    }
+
+    const projectsQuery = query(
+      collection(db, "projects"),
+      where("supervisorId", "==", currentUser.uid),
+      orderBy("dateSubmitted", "desc")
+    );
+
+    const unsubscribe = onSnapshot(projectsQuery, (snapshot) => {
+      const fetchedProjects = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setProjects(fetchedProjects);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [currentUser]);
+
   const filteredProjects = useMemo(() =>
-    mockProjects.filter(p =>
+    projects.filter(p =>
       p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.studentName.toLowerCase().includes(searchTerm.toLowerCase())
-    ), [searchTerm]);
+      (p.studentName && p.studentName.toLowerCase().includes(searchTerm.toLowerCase()))
+    ), [projects, searchTerm]);
 
   return (
     <SupervisorLayout>
@@ -91,13 +105,21 @@ const AllProjectsPage = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {filteredProjects.length > 0 ? (
-          filteredProjects.map(project => <ProjectCard key={project.id} project={project} />)
-        ) : (
-          <p className="text-gray-500 col-span-full text-center py-10">No projects match your search.</p>
-        )}
-      </div>
+      {loading ? (
+        <div className="text-center py-16"><FiLoader className="animate-spin mx-auto text-teal-500" size={48} /></div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {filteredProjects.length > 0 ? (
+            filteredProjects.map(project => <ProjectCard key={project.id} project={project} />)
+          ) : (
+            <div className="col-span-full text-center py-16 bg-white rounded-xl shadow-md">
+              <FiInbox size={60} className="mx-auto text-gray-300 mb-4" />
+              <h3 className="text-xl font-semibold text-gray-700">No Projects Found</h3>
+              <p className="text-gray-500 mt-2">You are not currently supervising any projects.</p>
+            </div>
+          )}
+        </div>
+      )}
     </SupervisorLayout>
   );
 };
