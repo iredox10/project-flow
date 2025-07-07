@@ -1,8 +1,13 @@
 
 import { initializeApp } from "firebase/app";
 import {
-  getAuth,
-  createUserWithEmailAndPassword
+ getAuth, 
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential
 } from "firebase/auth";
 import {
   arrayUnion,
@@ -58,5 +63,10 @@ export {
   createUserWithEmailAndPassword,
   serverTimestamp,
   orderBy,
+    EmailAuthProvider,
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+  reauthenticateWithCredential,
+  updatePassword,
   arrayUnion
 };
