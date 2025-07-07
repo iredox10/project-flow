@@ -20,7 +20,7 @@ const ProfilePage = () => {
     const [regNumber, setRegNumber] = useState('');
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
-    const [loading, setLoading] = useState({ profile: false, password: false });
+    const [loading, setLoading] = useState({ password: false });
     const [notification, setNotification] = useState({ isOpen: false, title: '', message: '', type: 'success' });
 
     useEffect(() => {
@@ -32,25 +32,6 @@ const ProfilePage = () => {
 
     const showNotification = (title, message, type = 'success') => {
         setNotification({ isOpen: true, title, message, type });
-    };
-
-    const handleProfileUpdate = async (e) => {
-        e.preventDefault();
-        setLoading(prev => ({ ...prev, profile: true }));
-        
-        const userRef = doc(db, "users", currentUser.uid);
-        try {
-            await updateDoc(userRef, {
-                name: name,
-                regNumber: regNumber
-            });
-            showNotification('Success', 'Your profile has been updated successfully.');
-        } catch (error) {
-            console.error("Error updating profile:", error);
-            showNotification('Error', 'Failed to update profile. Please try again.', 'error');
-        } finally {
-            setLoading(prev => ({ ...prev, profile: false }));
-        }
     };
     
     const handlePasswordUpdate = async (e) => {
@@ -105,30 +86,26 @@ const ProfilePage = () => {
 
                 {/* Right Column: Edit Forms */}
                 <div className="lg:col-span-2 space-y-8">
-                    {/* Personal Information Form */}
+                    {/* Personal Information Display */}
                     <div className="bg-white p-8 rounded-xl shadow-md">
                         <h3 className="text-xl font-bold text-gray-800 mb-6">Personal Information</h3>
-                        <form onSubmit={handleProfileUpdate} className="space-y-6">
+                        <div className="space-y-4">
                             <div>
-                                <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-                                <div className="relative">
+                                <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">Full Name</label>
+                                <div className="relative mt-1">
                                     <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                    <input type="text" id="fullName" value={name} onChange={(e) => setName(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                                    <input type="text" id="fullName" value={name} className="w-full pl-10 pr-4 py-2 border bg-gray-100 border-gray-300 rounded-lg cursor-not-allowed" disabled />
                                 </div>
                             </div>
                              <div>
-                                <label htmlFor="regNumber" className="block text-sm font-medium text-gray-700 mb-2">Registration Number</label>
-                                <div className="relative">
+                                <label htmlFor="regNumber" className="block text-sm font-medium text-gray-700">Registration Number</label>
+                                <div className="relative mt-1">
                                     <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                    <input type="text" id="regNumber" value={regNumber} onChange={(e) => setRegNumber(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                                    <input type="text" id="regNumber" value={regNumber} className="w-full pl-10 pr-4 py-2 border bg-gray-100 border-gray-300 rounded-lg cursor-not-allowed" disabled />
                                 </div>
                             </div>
-                            <div className="flex justify-end">
-                                <button type="submit" className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-blue-700 w-36" disabled={loading.profile}>
-                                    {loading.profile ? <FiLoader className="animate-spin" /> : <><FiSave size={18} />Save Changes</>}
-                                </button>
-                            </div>
-                        </form>
+                            <p className="text-xs text-gray-500 pt-2">Your name and registration number are managed by the administration. Please contact them if there is an error.</p>
+                        </div>
                     </div>
 
                     {/* Change Password Form */}

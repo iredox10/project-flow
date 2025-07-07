@@ -10,6 +10,8 @@ import ProposalPage from './pages/student/ProposalPage';
 import MyProjectPage from './pages/student/MyProjectPage';
 import StudentChapterEditorPage from './pages/student/ChapterEditorPage';
 import ProfilePage from './pages/student/ProfilePage';
+import StudentMessagesPage from './pages/student/MessagePage';
+
 // Admin Pages
 import AdminDashboard from './pages/AdminDashboard';
 import ManageUsersPage from './pages/ManageUsersPage';
@@ -21,6 +23,7 @@ import AllProjectsPage from './pages/supervisor/AllProjectsPage';
 import ViewProjectPage from './pages/supervisor/ViewProjectPage';
 import SupervisorChapterEditorPage from './pages/supervisor/ChapterEditorPage';
 import ProposalsPage from './pages/supervisor/ProposalsPage';
+import MessagesPage from './pages/supervisor/MessaagePage';
 // Super Admin Pages
 import SuperAdminDashboard from './pages/super-admin/SuperAdminDashboard';
 import ManageAdminsPage from './pages/super-admin/ManageAdminsPage';
@@ -39,6 +42,7 @@ function App() {
           <Route path="/student/my-project" element={<MyProjectPage />} />
           <Route path="/student/project/:projectId/chapter/:chapterId" element={<StudentChapterEditorPage />} />
           <Route path="/student/profile" element={<ProfilePage />} />
+          <Route path="/student/messages" element={<StudentMessagesPage />} />
 
           {/* --- Admin Routes --- */}
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
@@ -52,7 +56,7 @@ function App() {
           <Route path="/supervisor/projects" element={<AllProjectsPage />} />
           <Route path="/supervisor/project/:id" element={<ViewProjectPage />} />
           <Route path="/supervisor/project/:projectId/chapter/:chapterId" element={<SupervisorChapterEditorPage />} />
-
+          <Route path="/supervisor/messages" element={<MessagesPage />} />
           {/* --- Super Admin Routes --- */}
           <Route path="/super-admin/dashboard" element={<SuperAdminDashboard />} />
           <Route path="/super-admin/manage-admins" element={<ManageAdminsPage />} />
