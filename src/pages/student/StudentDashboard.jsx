@@ -57,12 +57,10 @@ const StudentDashboard = () => {
   // Fetch chapters and supervisor info once the project is loaded
   useEffect(() => {
     if (!project) {
-        // If there's no project, we can stop loading if the user is logged in
         if(currentUser) setLoading(false);
         return;
     };
 
-    // Fetch chapters for the project
     const chaptersQuery = query(
         collection(db, "chapters"), 
         where("projectId", "==", project.id), 
@@ -72,7 +70,6 @@ const StudentDashboard = () => {
         setChapters(snapshot.docs.map(doc => doc.data()));
     });
 
-    // Fetch supervisor details
     const fetchSupervisor = async () => {
         if (project.supervisorId) {
             const supervisorDoc = await getDoc(doc(db, "users", project.supervisorId));
@@ -86,14 +83,20 @@ const StudentDashboard = () => {
     return () => unsubscribeChapters();
   }, [project, currentUser]);
 
-const stats = useMemo(() => {
+  const stats = useMemo(() => {
       const approvedCount = chapters.filter(c => c.status === 'approved').length;
       const nextChapter = chapters.sort((a,b) => a.chapterNumber - b.chapterNumber).find(c => c.status === 'reviewing');
       
       let formattedDeadline = 'Not set';
-      // FIX: Safely check if deadline exists and has the toDate method
-      if (nextChapter && nextChapter.deadline && typeof nextChapter.deadline.toDate === 'function') {
-          formattedDeadline = format(nextChapter.deadline.toDate(), 'MMMM d, yyyy');
+      // FIX: Safely handle both Firebase Timestamps and date strings
+      if (nextChapter && nextChapter.deadline) {
+          if (typeof nextChapter.deadline.toDate === 'function') {
+              // It's a Firestore Timestamp
+              formattedDeadline = format(nextChapter.deadline.toDate(), 'MMMM d, yyyy');
+          } else {
+              // It's a string or a JS Date object
+              formattedDeadline = format(new Date(nextChapter.deadline), 'MMMM d, yyyy');
+          }
       }
 
       return {
@@ -103,26 +106,6 @@ const stats = useMemo(() => {
           nextDeadline: formattedDeadline
       }
   }, [chapters, supervisor]);
-
-  // const stats = useMemo(() => {
-  //     if (!project || chapters.length === 0) {
-  //         return {
-  //             chaptersSubmitted: '0/0',
-  //             supervisorName: supervisor?.name || 'N/A',
-  //             nextChapterTitle: 'No chapters defined.',
-  //             nextDeadline: 'Not set'
-  //         }
-  //     }
-  //
-  //     const approvedCount = chapters.filter(c => c.status === 'approved').length;
-  //     const nextChapter = chapters.sort((a,b) => a.chapterNumber - b.chapterNumber).find(c => c.status === 'reviewing');
-  //     return {
-  //         chaptersSubmitted: `${approvedCount}/${chapters.length}`,
-  //         supervisorName: supervisor?.name || 'N/A',
-  //         nextChapterTitle: nextChapter?.title || 'All chapters complete!',
-  //         nextDeadline: nextChapter?.deadline ? format(nextChapter.deadline.toDate(), 'MMMM d, yyyy') : 'Not set'
-  //     }
-  // }, [chapters, supervisor, project]);
 
   if (loading) {
       return <StudentLayout><div className="text-center p-8"><FiLoader className="animate-spin mx-auto text-blue-500" size={48} /></div></StudentLayout>;

@@ -20,15 +20,15 @@ const NotificationPanel = ({ notifications, onClose }) => {
 
     return (
         <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border z-20">
-            <div className="p-4 border-b">
+            <div className="p-4 border-b flex justify-between items-center">
                 <h3 className="font-semibold text-gray-800">Notifications</h3>
-                {unreadCount > 0 && <p className="text-xs text-blue-600">{unreadCount} unread</p>}
+                {unreadCount > 0 && <span className="text-xs font-bold text-white bg-red-500 rounded-full px-2 py-0.5">{unreadCount} New</span>}
             </div>
             <div className="max-h-80 overflow-y-auto">
                 {notifications.length > 0 ? notifications.map(notification => (
                     <Link to={notification.link || '#'} key={notification.id} className={`p-4 border-b hover:bg-gray-50 block ${!notification.read ? 'bg-blue-50' : ''}`}>
                         <div className="flex items-start gap-3">
-                            {getIcon(notification.type)}
+                            <div className="mt-1">{getIcon(notification.type)}</div>
                             <div>
                                 <p className="text-sm text-gray-700">{notification.text}</p>
                                 <p className="text-xs text-gray-400 mt-1">
@@ -39,7 +39,7 @@ const NotificationPanel = ({ notifications, onClose }) => {
                     </Link>
                 )) : <p className="p-4 text-sm text-gray-500 text-center">No new notifications.</p>}
             </div>
-             <div className="p-2 text-center">
+             <div className="p-2 text-center bg-gray-50 rounded-b-lg">
                 <Link to="#" className="text-sm font-medium text-blue-600 hover:underline">View all notifications</Link>
             </div>
         </div>
@@ -47,10 +47,17 @@ const NotificationPanel = ({ notifications, onClose }) => {
 };
 
 
-const SidebarLink = ({ to, icon, children }) => (
-  <Link to={to} className="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors duration-200">
-    {icon}
-    <span className="ml-3 font-medium">{children}</span>
+const SidebarLink = ({ to, icon, children, badgeCount }) => (
+  <Link to={to} className="flex items-center justify-between px-4 py-3 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors duration-200">
+    <div className="flex items-center">
+        {icon}
+        <span className="ml-3 font-medium">{children}</span>
+    </div>
+    {badgeCount > 0 && (
+        <span className="bg-blue-600 text-white text-xs font-semibold rounded-full px-2 py-0.5">
+            {badgeCount}
+        </span>
+    )}
   </Link>
 );
 
@@ -58,6 +65,7 @@ const StudentLayout = ({ children }) => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const [notifications, setNotifications] = useState([]);
+  const [badgeCounts, setBadgeCounts] = useState({ proposals: 0, projects: 0, messages: 0 });
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   
   useEffect(() => {
@@ -72,6 +80,14 @@ const StudentLayout = ({ children }) => {
       const unsubscribe = onSnapshot(q, (snapshot) => {
           const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
           setNotifications(notifs);
+
+          // Calculate badge counts from unread notifications
+          const unread = notifs.filter(n => !n.read);
+          setBadgeCounts({
+              proposals: unread.filter(n => n.link?.includes('/proposal')).length,
+              projects: unread.filter(n => n.link?.includes('/project')).length,
+              messages: unread.filter(n => n.link?.includes('/messages')).length,
+          });
       });
 
       return () => unsubscribe();
@@ -96,9 +112,9 @@ const StudentLayout = ({ children }) => {
         </div>
         <nav className="mt-6 px-4 space-y-2">
           <SidebarLink to="/student/dashboard" icon={<FiGrid size={20} />}>Dashboard</SidebarLink>
-          <SidebarLink to="/student/proposal" icon={<FiFilePlus size={20} />}>Project Proposal</SidebarLink>
-          <SidebarLink to="/student/my-project" icon={<FiBook size={20} />}>My Project</SidebarLink>
-          <SidebarLink to="/student/messages" icon={<FiMessageSquare size={20} />}>Messages</SidebarLink>
+          <SidebarLink to="/student/proposal" icon={<FiFilePlus size={20} />} badgeCount={badgeCounts.proposals}>Project Proposal</SidebarLink>
+          <SidebarLink to="/student/my-project" icon={<FiBook size={20} />} badgeCount={badgeCounts.projects}>My Project</SidebarLink>
+          <SidebarLink to="/student/messages" icon={<FiMessageSquare size={20} />} badgeCount={badgeCounts.messages}>Messages</SidebarLink>
           <SidebarLink to="/student/profile" icon={<FiUser size={20} />}>Profile</SidebarLink>
         </nav>
         <div className="absolute bottom-0 w-64 p-4">

@@ -44,6 +44,18 @@ const app = initializeApp(firebaseConfig);
 // Initialize and export services
 const auth = getAuth(app);
 const db = getFirestore(app);
+// Add this to your src/firebase/config.js file
+
+export const createNotification = async (userId, type, text, link) => {
+  await addDoc(collection(db, "notifications"), {
+    userId, // The ID of the user who will receive the notification
+    type,   // e.g., 'approval', 'feedback', 'submission'
+    text,
+    link,   // A URL to the relevant page
+    read: false,
+    createdAt: serverTimestamp()
+  });
+};
 
 // Export all the services and functions needed across the app
 export {

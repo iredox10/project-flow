@@ -22,6 +22,7 @@ import ReviewProposalPage from './pages/supervisor/ReviewProposalPage';
 import AllProjectsPage from './pages/supervisor/AllProjectsPage';
 import ViewProjectPage from './pages/supervisor/ViewProjectPage';
 import SupervisorChapterEditorPage from './pages/supervisor/ChapterEditorPage';
+import SupervisorProfilePage from './pages/supervisor/ProfilePage';
 import ProposalsPage from './pages/supervisor/ProposalsPage';
 import MessagesPage from './pages/supervisor/MessaagePage';
 // Super Admin Pages
@@ -57,6 +58,8 @@ function App() {
           <Route path="/supervisor/project/:id" element={<ViewProjectPage />} />
           <Route path="/supervisor/project/:projectId/chapter/:chapterId" element={<SupervisorChapterEditorPage />} />
           <Route path="/supervisor/messages" element={<MessagesPage />} />
+          <Route path="/supervisor/profile" element={<SupervisorProfilePage />} />
+
           {/* --- Super Admin Routes --- */}
           <Route path="/super-admin/dashboard" element={<SuperAdminDashboard />} />
           <Route path="/super-admin/manage-admins" element={<ManageAdminsPage />} />
