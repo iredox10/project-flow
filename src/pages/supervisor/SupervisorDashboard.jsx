@@ -61,63 +61,63 @@ const SupervisorDashboard = () => {
         };
     }, [students, projects]);
 
-  return (
-    <SupervisorLayout>
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Welcome, {currentUser?.name}!</h1>
-      
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <StatCard 
-            icon={<FiUsers size={24} className="text-blue-500"/>} 
-            title="Supervising" 
-            value={stats.supervising}
-            color="bg-blue-100"
-            loading={loading}
-        />
-        <StatCard 
-            icon={<FiFilePlus size={24} className="text-yellow-500"/>} 
-            title="Pending Proposals" 
-            value={stats.pendingProposalsCount}
-            color="bg-yellow-100"
-            loading={loading}
-        />
-         <StatCard 
-            icon={<FiClock size={24} className="text-green-500"/>} 
-            title="Active Projects" 
-            value={stats.activeProjects}
-            color="bg-green-100"
-            loading={loading}
-        />
-      </div>
+    return (
+        <SupervisorLayout>
+            <h1 className="text-3xl font-bold text-gray-900 mb-6">Welcome, {currentUser?.name}!</h1>
 
-      {/* Pending Proposals List */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">Pending Proposals for Review</h2>
-        <div className="space-y-4">
-            {loading ? <div className="text-center p-4"><FiLoader className="animate-spin mx-auto" /></div> : 
-            stats.pendingProposalsList.length > 0 ? (
-                stats.pendingProposalsList.map(proposal => (
-                    <div key={proposal.id} className="flex flex-col md:flex-row items-center justify-between p-4 bg-gray-50 rounded-lg">
-                        <div>
-                            <p className="font-semibold text-gray-800">{proposal.title}</p>
-                            <p className="text-sm text-gray-500">Submitted by: {proposal.studentName}</p>
-                        </div>
-                        <Link to={`/supervisor/proposal/${proposal.id}`} className="mt-2 md:mt-0 bg-teal-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-teal-700 transition-colors">
-                            Review Proposal
-                        </Link>
-                    </div>
-                ))
-            ) : (
-                <div className="text-center py-8">
-                    <FiInbox size={48} className="mx-auto text-gray-300 mb-4" />
-                    <p className="text-gray-500">No pending proposals at this time.</p>
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <StatCard
+                    icon={<FiUsers size={24} className="text-blue-500" />}
+                    title="Supervising"
+                    value={stats.supervising}
+                    color="bg-blue-100"
+                    loading={loading}
+                />
+                <StatCard
+                    icon={<FiFilePlus size={24} className="text-yellow-500" />}
+                    title="Pending Proposals"
+                    value={stats.pendingProposalsCount}
+                    color="bg-yellow-100"
+                    loading={loading}
+                />
+                <StatCard
+                    icon={<FiClock size={24} className="text-green-500" />}
+                    title="Active Projects"
+                    value={stats.activeProjects}
+                    color="bg-green-100"
+                    loading={loading}
+                />
+            </div>
+
+            {/* Pending Proposals List */}
+            <div className="bg-white p-6 rounded-lg shadow-md">
+                <h2 className="text-xl font-semibold text-gray-800 mb-4">Pending Proposals for Review</h2>
+                <div className="space-y-4">
+                    {loading ? <div className="text-center p-4"><FiLoader className="animate-spin mx-auto" /></div> :
+                        stats.pendingProposalsList.length > 0 ? (
+                            stats.pendingProposalsList.map(proposal => (
+                                <div key={proposal.id} className="flex flex-col md:flex-row items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                    <div>
+                                        <p className="font-semibold text-gray-800">{proposal.title}</p>
+                                        <p className="text-sm text-gray-500">Submitted by: {proposal.studentName}</p>
+                                    </div>
+                                    <Link to={`/supervisor/proposal/${proposal.id}`} className="mt-2 md:mt-0 bg-teal-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-teal-700 transition-colors">
+                                        Review Proposal
+                                    </Link>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="text-center py-8">
+                                <FiInbox size={48} className="mx-auto text-gray-300 mb-4" />
+                                <p className="text-gray-500">No pending proposals at this time.</p>
+                            </div>
+                        )}
                 </div>
-            )}
-        </div>
-      </div>
+            </div>
 
-    </SupervisorLayout>
-  );
+        </SupervisorLayout>
+    );
 };
 
 export default SupervisorDashboard;

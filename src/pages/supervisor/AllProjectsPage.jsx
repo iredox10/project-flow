@@ -86,8 +86,8 @@ const AllProjectsPage = () => {
 
   const filteredProjects = useMemo(() =>
     projects.filter(p =>
-      p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.studentName && p.studentName.toLowerCase().includes(searchTerm.toLowerCase()))
+      p.status !== 'rejected' && (p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.studentName && p.studentName.toLowerCase().includes(searchTerm.toLowerCase())))
     ), [projects, searchTerm]);
 
   return (
