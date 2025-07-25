@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useEditor, EditorContent, BubbleMenu } from '@tiptap/react';
-import { Mark } from '@tiptap/core';
+import { Mark, Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
@@ -23,6 +23,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { LineHeight } from './LineHeight';
 import PageBreak from './PageBreak';
 import FontSize from './FontSize';
+
 
 // Custom Mark to handle citations.
 const CitationMark = Mark.create({
@@ -57,8 +58,20 @@ const CommentMark = Mark.create({
   },
 });
 
+
+
+
+
 const TiptapEditor = ({ initialContent, onUpdate, onStartComment }) => {
   const [characterCount, setCharacterCount] = useState({ words: 0, characters: 0 });
+  const [citations, setCitations] = useState({});
+  const [showCitationModal, setShowCitationModal] = useState(false);
+  const [showBibliography, setShowBibliography] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isSuggesting, setIsSuggesting] = useState(false);
+
+  const editorContentRef = useRef(null);
 
   const editor = useEditor({
     extensions: [
@@ -93,6 +106,7 @@ const TiptapEditor = ({ initialContent, onUpdate, onStartComment }) => {
       LineHeight,
       PageBreak,
       FontSize,
+      
     ],
     content: initialContent,
     editorProps: {
@@ -101,14 +115,6 @@ const TiptapEditor = ({ initialContent, onUpdate, onStartComment }) => {
       },
     },
   });
-
-  const editorContentRef = useRef(null);
-
-  const [citations, setCitations] = useState({});
-  const [showCitationModal, setShowCitationModal] = useState(false);
-  const [showBibliography, setShowBibliography] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     if (!editor) {
@@ -141,6 +147,7 @@ const TiptapEditor = ({ initialContent, onUpdate, onStartComment }) => {
     };
 
     const handleEditorTransaction = () => {
+      console.log('Editor transaction occurred');
       updateStats();
     };
 
@@ -191,6 +198,8 @@ const TiptapEditor = ({ initialContent, onUpdate, onStartComment }) => {
       <style>{`
         .comment-highlight { background-color: #fef08a; cursor: pointer; }
         .citation-highlight { background-color: #a7f3d0; cursor: pointer; }
+        ins { background-color: #d4edda; text-decoration: none; }
+        del { background-color: #f8d7da; text-decoration: line-through; }
         .ProseMirror table { border-collapse: collapse; width: 100%; }
         .ProseMirror th, .ProseMirror td { border: 1px solid #ccc; padding: 8px; }
         .ProseMirror th { background-color: #f2f2f2; }
@@ -245,7 +254,7 @@ const TiptapEditor = ({ initialContent, onUpdate, onStartComment }) => {
       }
 
       <div className="sticky top-0 z-10">
-        <Ribbon editor={editor} setShowCitationModal={setShowCitationModal} setShowBibliography={setShowBibliography} showBibliography={showBibliography} />
+        <Ribbon editor={editor} setShowCitationModal={setShowCitationModal} setShowBibliography={setShowBibliography} showBibliography={showBibliography} setIsSuggesting={setIsSuggesting} isSuggesting={isSuggesting} />
       </div>
       <div className="flex-grow overflow-auto p-8 bg-[#F3F3F3]" ref={editorContentRef}>
         <div className="page-container w-[8.5in] min-h-[11in] mx-auto">

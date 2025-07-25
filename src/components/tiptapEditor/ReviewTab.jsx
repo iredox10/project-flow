@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { FiCheckSquare, FiBookOpen } from 'react-icons/fi';
+import { FiCheckSquare, FiBookOpen, FiEdit } from 'react-icons/fi';
 import SpellCheck from './SpellCheck';
 import Thesaurus from './Thesaurus';
 
@@ -15,7 +15,7 @@ const RibbonButton = ({ action, icon: Icon, label }) => (
     </button>
   );
 
-const ReviewTab = ({ editor }) => {
+const ReviewTab = ({ editor, setIsSuggesting, isSuggesting }) => {
   const [isSpellCheckVisible, setSpellCheckVisible] = useState(false);
   const [isThesaurusVisible, setThesaurusVisible] = useState(false);
 
@@ -28,6 +28,21 @@ const ReviewTab = ({ editor }) => {
         <div className="flex flex-col items-center">
             <RibbonButton action={() => setThesaurusVisible(true)} icon={FiBookOpen} label="Thesaurus" />
             <span className="text-xs mt-1 text-gray-500">Language</span>
+        </div>
+
+        {/* Track Changes Group */}
+        <div className="flex flex-col items-center">
+            <RibbonButton 
+                action={() => {
+                    setIsSuggesting(!isSuggesting);
+                    editor.commands.toggleSuggesting();
+                }}
+                icon={FiEdit} 
+                label="Track Changes" 
+                name="trackChanges" 
+                className={isSuggesting ? 'bg-blue-200' : ''} // Highlight if active
+            />
+            <span className="text-xs mt-1 text-gray-500">Review</span>
         </div>
         {isSpellCheckVisible && <SpellCheck editor={editor} onClose={() => setSpellCheckVisible(false)} />}
         {isThesaurusVisible && <Thesaurus editor={editor} onClose={() => setThesaurusVisible(false)} />}
