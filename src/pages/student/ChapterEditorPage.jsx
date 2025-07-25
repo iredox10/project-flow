@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import TiptapEditor from '../../components/tiptapEditor/TiptapEditor';
 import  NotificationModal  from '../../components/NotificationModal';
-import { FiCheck, FiArrowLeft, FiSend, FiLoader, FiX } from 'react-icons/fi';
+import { FiCheck, FiArrowLeft, FiSend, FiLoader, FiX, FiDownload, FiSearch, FiClock } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import { 
     db, 
@@ -15,10 +15,15 @@ import {
     query,
     collection,
     where,
-    orderBy
+    orderBy,
+    addDoc
 } from '../../firebase/config';
+import { limit } from 'firebase/firestore';
 import { debounce } from 'lodash';
 import { format } from 'date-fns';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import VersionHistory from '../../components/VersionHistory';
 
 // --- Comment Input Form Component ---
 const CommentInput = ({ onSubmit, placeholder, submitLabel, isSubmitting }) => {
@@ -105,16 +110,29 @@ const StudentChapterEditorPage = () => {
     const [editorContent, setEditorContent] = useState('');
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isCheckingPlagiarism, setIsCheckingPlagiarism] = useState(false);
     const [activeCommentId, setActiveCommentId] = useState(null);
     const [notification, setNotification] = useState({ isOpen: false, title: '', message: '', type: 'success' });
+    const [showVersionHistory, setShowVersionHistory] = useState(false);
+    const [versions, setVersions] = useState([]);
+    const editorRef = useRef(null);
 
     const saveContent = useCallback(
         debounce(async (content) => {
             if (chapterId) {
                 const chapterRef = doc(db, "chapters", chapterId);
+                // First, update the main chapter content
                 await updateDoc(chapterRef, { content });
+
+                // Then, add a new version to the subcollection
+                const versionsCollectionRef = collection(db, "chapters", chapterId, "versions");
+                await addDoc(versionsCollectionRef, {
+                    content,
+                    timestamp: serverTimestamp()
+                });
+                showNotification('Success', 'Changes saved automatically.', 'success');
             }
-        }, 1000),
+        }, 2000), // Increased debounce time
         [chapterId]
     );
 
@@ -126,7 +144,12 @@ const StudentChapterEditorPage = () => {
             if (doc.exists()) {
                 const data = doc.data();
                 setChapter({ id: doc.id, ...data });
-                setEditorContent(data.content || `<h1>${data.title}</h1><p>Start writing here...</p>`);
+                // Only set editor content from Firestore on initial load
+                if (editorRef.current === null) {
+                    const initialContent = data.content || `<h1>${data.title}</h1><p>Start writing here...</p>`;
+                    setEditorContent(initialContent);
+                    editorRef.current = initialContent;
+                }
             }
             setLoading(false);
         });
@@ -137,9 +160,16 @@ const StudentChapterEditorPage = () => {
             setComments(fetchedComments);
         });
 
+        const versionsQuery = query(collection(db, "chapters", chapterId, "versions"), orderBy("timestamp", "desc"), limit(20));
+        const unsubVersions = onSnapshot(versionsQuery, (snapshot) => {
+            const fetchedVersions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setVersions(fetchedVersions);
+        });
+
         return () => {
             unsubChapter();
             unsubComments();
+            unsubVersions();
         };
     }, [chapterId]);
 
@@ -150,6 +180,23 @@ const StudentChapterEditorPage = () => {
     const handleEditorUpdate = (content) => {
         setEditorContent(content);
         saveContent(content);
+    };
+
+    const handleRestoreVersion = async (versionContent) => {
+        // Update the editor's content
+        setEditorContent(versionContent);
+        
+        // Manually trigger an update in the editor component if it doesn't automatically
+        // This might require a method passed down to TiptapEditor to force-set its content
+        
+        // Update the database
+        if (chapterId) {
+            const chapterRef = doc(db, "chapters", chapterId);
+            await updateDoc(chapterRef, { content: versionContent });
+        }
+        
+        setShowVersionHistory(false);
+        showNotification('Success', 'Content has been restored to the selected version.', 'success');
     };
 
     const addReply = async (commentId, replyText) => {
@@ -187,12 +234,59 @@ const StudentChapterEditorPage = () => {
         setTimeout(() => navigate('/student/my-project'), 2000);
     };
 
+    const handleExportToPDF = () => {
+        const editorContentElement = document.querySelector('.ProseMirror');
+        if (editorContentElement) {
+            html2canvas(editorContentElement).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF();
+                const imgProps= pdf.getImageProperties(imgData);
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                pdf.save(`${chapter?.title || 'chapter'}.pdf`);
+            });
+        }
+    };
+
+    const handlePlagiarismCheck = async () => {
+        setIsCheckingPlagiarism(true);
+        showNotification('Info', 'Checking for plagiarism... This may take a moment.', 'info');
+
+        const simulatePlagiarismAPI = new Promise(resolve => {
+            setTimeout(() => {
+                const randomScore = Math.floor(Math.random() * 15) + 1;
+                resolve({ plagiarismScore: randomScore });
+            }, 3000);
+        });
+
+        try {
+            const result = await simulatePlagiarismAPI;
+            showNotification(
+                'Plagiarism Check Complete',
+                `The simulated plagiarism score is ${result.plagiarismScore}%.`,
+                'success'
+            );
+        } catch (error) {
+            showNotification('Error', 'Failed to check for plagiarism. Please try again.', 'error');
+        } finally {
+            setIsCheckingPlagiarism(false);
+        }
+    };
+
     if (loading) {
         return <div className="flex h-screen items-center justify-center"><FiLoader className="animate-spin text-blue-500" size={48} /></div>;
     }
 
     return (
         <div className="p-8 bg-gray-100 min-h-screen">
+            {showVersionHistory && (
+                <VersionHistory 
+                    versions={versions}
+                    onClose={() => setShowVersionHistory(false)}
+                    onSelectVersion={handleRestoreVersion}
+                />
+            )}
             <NotificationModal 
                 isOpen={notification.isOpen} 
                 onClose={() => setNotification({ ...notification, isOpen: false })}
@@ -208,16 +302,31 @@ const StudentChapterEditorPage = () => {
                     </Link>
                     <h1 className="text-3xl font-bold text-gray-900">{chapter?.title}</h1>
                 </div>
-                 <button onClick={handleSubmitForReview} className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700" disabled={isSubmitting}>
-                    {isSubmitting ? <FiLoader className="animate-spin" /> : <FiCheck size={20} />}
-                    Submit for Review
-                </button>
+                <div className="flex items-center gap-4">
+                    <button onClick={() => setShowVersionHistory(true)} className="inline-flex items-center gap-2 bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-500">
+                        <FiClock size={20} />
+                        History
+                    </button>
+                    <button onClick={handlePlagiarismCheck} className="inline-flex items-center gap-2 bg-yellow-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-yellow-600" disabled={isCheckingPlagiarism}>
+                        {isCheckingPlagiarism ? <FiLoader className="animate-spin" /> : <FiSearch size={20} />}
+                        Check Plagiarism
+                    </button>
+                    <button onClick={handleExportToPDF} className="inline-flex items-center gap-2 bg-gray-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-600">
+                        <FiDownload size={20} />
+                        Export as PDF
+                    </button>
+                    <button onClick={handleSubmitForReview} className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700" disabled={isSubmitting}>
+                        {isSubmitting ? <FiLoader className="animate-spin" /> : <FiCheck size={20} />}
+                        Submit for Review
+                    </button>
+                </div>
             </div>
 
             <div className="flex flex-col md:flex-row gap-8">
                 <div className="flex-grow">
                     <div className="bg-white rounded-xl shadow-md">
                         <TiptapEditor 
+                            key={editorContent} // Force re-render when content changes
                             initialContent={editorContent}
                             onUpdate={handleEditorUpdate}
                             onStartComment={() => {}} // Students cannot create new comments
