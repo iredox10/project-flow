@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FiImage, FiGrid, FiLink, FiChevronsUp, FiChevronsDown, FiFileText } from 'react-icons/fi';
+import { FiImage, FiGrid, FiLink, FiChevronsUp, FiChevronsDown, FiFileText, FiBookOpen } from 'react-icons/fi';
 
 const RibbonButton = ({ action, icon: Icon, label }) => (
     <button
@@ -13,7 +13,7 @@ const RibbonButton = ({ action, icon: Icon, label }) => (
     </button>
   );
 
-const InsertTab = ({ editor }) => {
+const InsertTab = ({ editor, setShowCitationModal }) => {
   if (!editor) return null;
 
   const addImage = () => {
@@ -74,6 +74,12 @@ const InsertTab = ({ editor }) => {
         <div className="flex flex-col items-center">
             <RibbonButton action={() => editor.chain().focus().setPageBreak().run()} icon={FiFileText} label="Page Break" />
             <span className="text-xs mt-1 text-gray-500">Page Layout</span>
+        </div>
+
+        {/* Citations Group */}
+        <div className="flex flex-col items-center">
+            <RibbonButton action={() => setShowCitationModal(true)} icon={FiBookOpen} label="Citation" />
+            <span className="text-xs mt-1 text-gray-500">Citations</span>
         </div>
     </div>
   );

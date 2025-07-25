@@ -7,7 +7,7 @@ import ReviewTab from './ReviewTab';
 import PageLayout from './PageLayout';
 import ReferencesTab from './ReferencesTab';
 
-const Ribbon = ({ editor }) => {
+const Ribbon = ({ editor, setShowCitationModal, setShowBibliography, showBibliography }) => {
   const [activeTab, setActiveTab] = useState('home');
 
   useEffect(() => {
@@ -84,9 +84,9 @@ const Ribbon = ({ editor }) => {
       {/* Tab Content */}
       <div className="p-1 bg-white min-h-[60px]">
         {activeTab === 'home' && <HomeTab editor={editor} />}
-        {activeTab === 'insert' && <InsertTab editor={editor} />}
+        {activeTab === 'insert' && <InsertTab editor={editor} setShowCitationModal={setShowCitationModal} />}
         {activeTab === 'layout' && <PageLayout editor={editor} />}
-        {activeTab === 'references' && <ReferencesTab editor={editor} />}
+        {activeTab === 'references' && <ReferencesTab editor={editor} setShowBibliography={setShowBibliography} showBibliography={showBibliography} />}
         {activeTab === 'review' && <ReviewTab editor={editor} />}
         {activeTab === 'table' && <TableTab editor={editor} />}
         {activeTab === 'file' && <div>File Content Goes Here</div>}

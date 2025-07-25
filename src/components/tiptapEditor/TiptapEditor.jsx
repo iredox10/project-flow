@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useEditor, EditorContent, BubbleMenu } from '@tiptap/react';
 import { Mark } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
@@ -22,9 +22,26 @@ import { FiMessageSquare } from 'react-icons/fi';
 import { v4 as uuidv4 } from 'uuid';
 import { LineHeight } from './LineHeight';
 import PageBreak from './PageBreak';
+import FontSize from './FontSize';
+
+// Custom Mark to handle citations.
+const CitationMark = Mark.create({
+  name: 'citation',
+  addAttributes() { return { citationId: { default: null, parseHTML: el => el.getAttribute('data-citation-id'), renderHTML: attrs => ({ 'data-citation-id': attrs.citationId }) } }; },
+  parseHTML() { return [{ tag: 'span' }] }, // Use a span or similar for inline citation
+  renderHTML({ HTMLAttributes }) { return ['span', { ...HTMLAttributes, class: 'citation-highlight' }, 0] },
+  addCommands() {
+    return {
+      setCitation: (citationId) => ({ commands }) => commands.setMark(this.name, { citationId }),
+      unsetCitation: (citationId) => ({ commands }) => commands.unsetMark(this.name, { citationId }),
+    };
+  },
+});
 import './ResizableImage.css';
 
 import Ribbon from './Ribbon';
+import CitationModal from './CitationModal';
+import Bibliography from './Bibliography';
 
 // Custom Mark to handle comments.
 const CommentMark = Mark.create({
@@ -70,10 +87,12 @@ const TiptapEditor = ({ initialContent, onUpdate, onStartComment }) => {
       Superscript, 
       Subscript, 
       CommentMark,
+      CitationMark,
       Link.configure({ openOnClick: false }),
       CharacterCount,
       LineHeight,
       PageBreak,
+      FontSize,
     ],
     content: initialContent,
     editorProps: {
@@ -82,6 +101,14 @@ const TiptapEditor = ({ initialContent, onUpdate, onStartComment }) => {
       },
     },
   });
+
+  const editorContentRef = useRef(null);
+
+  const [citations, setCitations] = useState({});
+  const [showCitationModal, setShowCitationModal] = useState(false);
+  const [showBibliography, setShowBibliography] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     if (!editor) {
@@ -93,22 +120,44 @@ const TiptapEditor = ({ initialContent, onUpdate, onStartComment }) => {
       setCharacterCount({ words: stats.words(), characters: stats.characters() });
     };
 
-    const handleUpdate = () => {
-      if (onUpdate) {
-        onUpdate(editor.getHTML());
+    const updatePageNumbers = () => {
+      if (editorContentRef.current) {
+        const pageBreaks = editorContentRef.current.querySelectorAll('.page-break');
+        const total = pageBreaks.length + 1;
+        setTotalPages(total);
+
+        let current = 1;
+        for (let i = 0; i < pageBreaks.length; i++) {
+          const rect = pageBreaks[i].getBoundingClientRect();
+          // If the page break is above or at the top of the viewport
+          if (rect.top <= editorContentRef.current.getBoundingClientRect().top) {
+            current = i + 2; // +1 for 0-indexed, +1 because it's the next page
+          } else {
+            break;
+          }
+        }
+        setCurrentPage(current);
       }
+    };
+
+    const handleEditorTransaction = () => {
       updateStats();
     };
 
-    editor.on('update', handleUpdate);
-    editor.on('selectionUpdate', handleUpdate);
+    const handleScroll = () => {
+      updatePageNumbers();
+    };
+
+    editorContentRef.current?.addEventListener('scroll', handleScroll);
+    editor.on('transaction', handleEditorTransaction); // Use transaction for all updates
 
     // Initial update
-    handleUpdate();
+    handleEditorTransaction(); // Call once initially
+    updatePageNumbers(); // Ensure page numbers are updated on initial load
 
     return () => {
-      editor.off('update', handleUpdate);
-      editor.off('selectionUpdate', handleUpdate);
+      editorContentRef.current?.removeEventListener('scroll', handleScroll);
+      editor.off('transaction', handleEditorTransaction); // Cleanup
     };
   }, [editor, onUpdate]);
 
@@ -122,10 +171,26 @@ const TiptapEditor = ({ initialContent, onUpdate, onStartComment }) => {
     }
   };
 
+  const handleAddCitation = (newCitation) => {
+    setCitations((prevCitations) => ({
+      ...prevCitations,
+      [newCitation.id]: newCitation,
+    }));
+    // Optionally, apply the citation mark to the current selection
+    if (editor) {
+      editor.chain().focus().setCitation(newCitation.id).run();
+    }
+  };
+
+  const handleCloseCitationModal = () => {
+    setShowCitationModal(false);
+  };
+
   return (
     <div className="flex flex-col h-full bg-gray-100">
       <style>{`
         .comment-highlight { background-color: #fef08a; cursor: pointer; }
+        .citation-highlight { background-color: #a7f3d0; cursor: pointer; }
         .ProseMirror table { border-collapse: collapse; width: 100%; }
         .ProseMirror th, .ProseMirror td { border: 1px solid #ccc; padding: 8px; }
         .ProseMirror th { background-color: #f2f2f2; }
@@ -134,9 +199,26 @@ const TiptapEditor = ({ initialContent, onUpdate, onStartComment }) => {
             border: 1px dashed #ccc;
             margin-top: 1rem;
             margin-bottom: 1rem;
+            height: 0;
+            position: relative;
+            clear: both;
+        }
+        .page-break::before {
+            content: 'Page Break';
+            position: absolute;
+            top: -0.75em;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #f3f3f3;
+            padding: 0 0.5em;
+            color: #888;
+            font-size: 0.8em;
         }
         .page-container {
             counter-reset: page;
+            background-color: white;
+            box-shadow: 0 0 8px rgba(0,0,0,0.1);
+            margin-bottom: 1rem;
         }
         .page {
             position: relative;
@@ -163,23 +245,31 @@ const TiptapEditor = ({ initialContent, onUpdate, onStartComment }) => {
       }
 
       <div className="sticky top-0 z-10">
-        <Ribbon editor={editor} />
+        <Ribbon editor={editor} setShowCitationModal={setShowCitationModal} setShowBibliography={setShowBibliography} showBibliography={showBibliography} />
       </div>
-      <div className="flex-grow overflow-auto p-8 bg-[#F3F3F3]">
+      <div className="flex-grow overflow-auto p-8 bg-[#F3F3F3]" ref={editorContentRef}>
         <div className="page-container w-[8.5in] min-h-[11in] mx-auto">
           <EditorContent editor={editor} />
         </div>
+        {showBibliography && <Bibliography citations={citations} />}
       </div>
 
       {/* Word Count Status Bar */}
       <div className="sticky bottom-0 z-10 flex justify-between items-center text-sm text-white p-2 bg-[#0078D4]">
-        <div>Page 1 of 1</div>
+        <div>Page {currentPage} of {totalPages}</div>
         <div className="flex items-center">
             <span>{characterCount.words} words</span>
             <span className="mx-2">|</span>
             <span>{characterCount.characters} characters</span>
         </div>
       </div>
+
+      {showCitationModal && (
+        <CitationModal
+          onClose={handleCloseCitationModal}
+          onSaveCitation={handleAddCitation}
+        />
+      )}
     </div>
   );
 };

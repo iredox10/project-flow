@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FiBook } from 'react-icons/fi';
+import { FiBook, FiBookOpen } from 'react-icons/fi';
 
 const RibbonButton = ({ action, icon: Icon, label }) => (
     <button
@@ -13,7 +13,7 @@ const RibbonButton = ({ action, icon: Icon, label }) => (
     </button>
   );
 
-const ReferencesTab = ({ editor }) => {
+const ReferencesTab = ({ editor, setShowBibliography, showBibliography }) => {
   const generateTableOfContents = () => {
     if (!editor) return;
 
@@ -56,6 +56,12 @@ const ReferencesTab = ({ editor }) => {
         <div className="flex flex-col items-center">
             <RibbonButton action={generateTableOfContents} icon={FiBook} label="Table of Contents" />
             <span className="text-xs mt-1 text-gray-500">Table of Contents</span>
+        </div>
+
+        {/* Bibliography Group */}
+        <div className="flex flex-col items-center">
+            <RibbonButton action={() => setShowBibliography(!showBibliography)} icon={FiBookOpen} label="Bibliography" />
+            <span className="text-xs mt-1 text-gray-500">Bibliography</span>
         </div>
     </div>
   );

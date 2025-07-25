@@ -149,10 +149,18 @@ const HomeTab = ({ editor }) => {
                 <option value="arial">Arial</option>
                 <option value="times new roman">Times New Roman</option>
             </select>
-            <select onChange={(e) => editor.chain().focus().toggleHeading({ level: parseInt(e.target.value) }).run()} className="text-sm pl-2">
+            <select onChange={(e) => editor.chain().focus().setFontSize(e.target.value).run()} className="text-sm pl-2">
                 <option value="12">12</option>
                 <option value="14">14</option>
                 <option value="16">16</option>
+                <option value="18">18</option>
+                <option value="20">20</option>
+                <option value="24">24</option>
+                <option value="28">28</option>
+                <option value="32">32</option>
+                <option value="36">36</option>
+                <option value="48">48</option>
+                <option value="72">72</option>
             </select>
         </div>
         <div className="flex mt-1">
