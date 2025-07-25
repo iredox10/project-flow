@@ -1,39 +1,39 @@
 
-import React from 'react';
-import { FiMessageSquare } from 'react-icons/fi';
+import React, { useState } from 'react';
+import { FiCheckSquare, FiBookOpen } from 'react-icons/fi';
+import SpellCheck from './SpellCheck';
+import Thesaurus from './Thesaurus';
 
-const RibbonButton = ({ action, icon: Icon, label, disabled }) => (
-  <button onClick={action} className="p-2 rounded-md hover:bg-gray-200 text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed" title={label} disabled={disabled}>
-    <Icon size={18} />
-  </button>
-);
+const RibbonButton = ({ action, icon: Icon, label }) => (
+    <button
+      onClick={action}
+      className={`p-1 rounded hover:bg-gray-200 flex flex-col items-center justify-center w-20 h-20 text-gray-700'}`}
+      title={label}
+    >
+      <Icon size={24} />
+      <span className="text-xs mt-1">{label}</span>
+    </button>
+  );
 
 const ReviewTab = ({ editor }) => {
-  if (!editor) return null;
-
-  const handleAddComment = () => {
-    const comment = window.prompt("Enter your comment:");
-    if (comment) {
-      // In a real app, you would also save this comment to a database
-      // The `Comment` extension requires an `onComment` callback to be handled
-      // in the main editor component to manage comment state.
-      editor.chain().focus().setComment(comment).run();
-    }
-  };
-
-  // Disable the button if no text is selected
-  const isTextSelected = !editor.state.selection.empty;
+  const [isSpellCheckVisible, setSpellCheckVisible] = useState(false);
+  const [isThesaurusVisible, setThesaurusVisible] = useState(false);
 
   return (
-    <div className="flex flex-wrap items-center gap-4">
-      <div className="flex items-center gap-1">
-        <button onClick={handleAddComment} disabled={!isTextSelected} className="p-2 rounded-md hover:bg-gray-200 text-gray-600 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" title="Add Comment">
-          <FiMessageSquare size={18} />
-          <span>Add Comment</span>
-        </button>
-      </div>
+    <div className="flex items-start gap-4 p-2">
+        <div className="flex flex-col items-center">
+            <RibbonButton action={() => setSpellCheckVisible(true)} icon={FiCheckSquare} label="Spelling & Grammar" />
+            <span className="text-xs mt-1 text-gray-500">Proofing</span>
+        </div>
+        <div className="flex flex-col items-center">
+            <RibbonButton action={() => setThesaurusVisible(true)} icon={FiBookOpen} label="Thesaurus" />
+            <span className="text-xs mt-1 text-gray-500">Language</span>
+        </div>
+        {isSpellCheckVisible && <SpellCheck editor={editor} onClose={() => setSpellCheckVisible(false)} />}
+        {isThesaurusVisible && <Thesaurus editor={editor} onClose={() => setThesaurusVisible(false)} />}
     </div>
   );
 };
 
 export default ReviewTab;
+
