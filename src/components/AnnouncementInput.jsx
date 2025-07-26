@@ -24,6 +24,7 @@ const AnnouncementInput = () => {
         authorId: currentUser.uid,
         createdAt: serverTimestamp(),
         scope,
+        readBy: [],
       });
       setTitle('');
       setContent('');
