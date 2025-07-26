@@ -113,9 +113,17 @@ const TiptapEditor = ({ content, onUpdate, onStartComment }) => {
   });
 
   useEffect(() => {
-    if (editor && content !== lastContent.current) {
-      editor.commands.setContent(content);
-      lastContent.current = content;
+    if (!editor) {
+      return;
+    }
+    
+    // Compare the prop content with the editor's current content
+    const isSame = editor.getHTML() === content;
+
+    // If the content is different, update the editor
+    if (!isSame) {
+      // Set the content without triggering the 'onUpdate' event to prevent loops
+      editor.commands.setContent(content, false);
     }
   }, [content, editor]);
 

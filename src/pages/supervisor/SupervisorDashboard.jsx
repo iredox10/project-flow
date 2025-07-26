@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import SupervisorLayout from '../../components/SupervisorLayout';
-import { FiUsers, FiFilePlus, FiClock, FiLoader, FiInbox } from 'react-icons/fi';
+import { FiUsers, FiFilePlus, FiClock, FiLoader, FiInbox, FiCheckCircle } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import { db, collection, query, where, onSnapshot } from '../../firebase/config';
 
@@ -23,6 +23,7 @@ const SupervisorDashboard = () => {
     const { currentUser } = useAuth();
     const [projects, setProjects] = useState([]);
     const [students, setStudents] = useState([]);
+    const [reviewingChapters, setReviewingChapters] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -34,7 +35,21 @@ const SupervisorDashboard = () => {
         // Listener for projects assigned to this supervisor
         const projectsQuery = query(collection(db, "projects"), where("supervisorId", "==", currentUser.uid));
         const unsubProjects = onSnapshot(projectsQuery, (snapshot) => {
+            const projectIds = snapshot.docs.map(doc => doc.id);
             setProjects(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
+            // Fetch chapters that need review
+            if (projectIds.length > 0) {
+                const chaptersQuery = query(
+                    collection(db, "chapters"),
+                    where("projectId", "in", projectIds),
+                    where("status", "==", "reviewing")
+                );
+                const unsubChapters = onSnapshot(chaptersQuery, (chaptersSnapshot) => {
+                    setReviewingChapters(chaptersSnapshot.docs.map(doc => doc.data()));
+                });
+                return () => unsubChapters();
+            }
         });
 
         // Listener for students assigned to this supervisor
@@ -56,17 +71,18 @@ const SupervisorDashboard = () => {
         return {
             supervising: students.length,
             pendingProposalsCount: pendingProposals.length,
+            chaptersForReview: reviewingChapters.length,
             activeProjects: projects.filter(p => p.status === 'approved').length,
             pendingProposalsList: pendingProposals,
         };
-    }, [students, projects]);
+    }, [students, projects, reviewingChapters]);
 
     return (
         <SupervisorLayout>
             <h1 className="text-3xl font-bold text-gray-900 mb-6">Welcome, {currentUser?.name}!</h1>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <StatCard
                     icon={<FiUsers size={24} className="text-blue-500" />}
                     title="Supervising"
@@ -86,6 +102,13 @@ const SupervisorDashboard = () => {
                     title="Active Projects"
                     value={stats.activeProjects}
                     color="bg-green-100"
+                    loading={loading}
+                />
+                <StatCard
+                    icon={<FiCheckCircle size={24} className="text-red-500" />}
+                    title="Chapters for Review"
+                    value={stats.chaptersForReview}
+                    color="bg-red-100"
                     loading={loading}
                 />
             </div>
