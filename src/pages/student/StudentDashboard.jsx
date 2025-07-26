@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { db, collection, query, where, onSnapshot, doc, getDoc, orderBy } from '../../firebase/config';
 import { limit } from 'firebase/firestore';
 import { format, formatDistanceToNow } from 'date-fns';
+import Announcements from '../../components/Announcements';
 
 // --- Reusable Stat Card Component ---
 const StatCard = ({ icon, title, value, color, loading }) => (
@@ -201,6 +202,9 @@ const StudentDashboard = () => {
                         </div>
                     )}
                 </div>
+            </div>
+            <div className="mt-8">
+                <Announcements />
             </div>
         </>
       )}

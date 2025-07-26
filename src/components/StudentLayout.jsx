@@ -115,6 +115,7 @@ const StudentLayout = ({ children }) => {
           <SidebarLink to="/student/proposal" icon={<FiFilePlus size={20} />} badgeCount={badgeCounts.proposals}>Project Proposal</SidebarLink>
           <SidebarLink to="/student/my-project" icon={<FiBook size={20} />} badgeCount={badgeCounts.projects}>My Project</SidebarLink>
           <SidebarLink to="/student/messages" icon={<FiMessageSquare size={20} />} badgeCount={badgeCounts.messages}>Messages</SidebarLink>
+          <SidebarLink to="/student/announcements" icon={<FiBell size={20} />}>Announcements</SidebarLink>
           <SidebarLink to="/student/profile" icon={<FiUser size={20} />}>Profile</SidebarLink>
         </nav>
         <div className="absolute bottom-0 w-64 p-4">
