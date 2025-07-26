@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useEditor, EditorContent, BubbleMenu } from '@tiptap/react';
 import { Mark, Extension } from '@tiptap/core';
@@ -58,11 +57,7 @@ const CommentMark = Mark.create({
   },
 });
 
-
-
-
-
-const TiptapEditor = ({ initialContent, onUpdate, onStartComment }) => {
+const TiptapEditor = ({ content, onUpdate, onStartComment }) => {
   const [characterCount, setCharacterCount] = useState({ words: 0, characters: 0 });
   const [citations, setCitations] = useState({});
   const [showCitationModal, setShowCitationModal] = useState(false);
@@ -71,7 +66,8 @@ const TiptapEditor = ({ initialContent, onUpdate, onStartComment }) => {
   const [totalPages, setTotalPages] = useState(1);
   const [isSuggesting, setIsSuggesting] = useState(false);
 
-  const editorContentRef = useRef(null);
+  const editorWrapperRef = useRef(null);
+  const lastContent = useRef(content);
 
   const editor = useEditor({
     extensions: [
@@ -108,13 +104,20 @@ const TiptapEditor = ({ initialContent, onUpdate, onStartComment }) => {
       FontSize,
       
     ],
-    content: initialContent,
+    content: content,
     editorProps: {
       attributes: {
         class: 'prose prose-lg max-w-none p-8 focus:outline-none bg-white shadow-lg',
       },
     },
   });
+
+  useEffect(() => {
+    if (editor && content !== lastContent.current) {
+      editor.commands.setContent(content);
+      lastContent.current = content;
+    }
+  }, [content, editor]);
 
   useEffect(() => {
     if (!editor) {
@@ -127,8 +130,8 @@ const TiptapEditor = ({ initialContent, onUpdate, onStartComment }) => {
     };
 
     const updatePageNumbers = () => {
-      if (editorContentRef.current) {
-        const pageBreaks = editorContentRef.current.querySelectorAll('.page-break');
+      if (editorWrapperRef.current) {
+        const pageBreaks = editorWrapperRef.current.querySelectorAll('.page-break');
         const total = pageBreaks.length + 1;
         setTotalPages(total);
 
@@ -136,7 +139,7 @@ const TiptapEditor = ({ initialContent, onUpdate, onStartComment }) => {
         for (let i = 0; i < pageBreaks.length; i++) {
           const rect = pageBreaks[i].getBoundingClientRect();
           // If the page break is above or at the top of the viewport
-          if (rect.top <= editorContentRef.current.getBoundingClientRect().top) {
+          if (rect.top <= editorWrapperRef.current.getBoundingClientRect().top) {
             current = i + 2; // +1 for 0-indexed, +1 because it's the next page
           } else {
             break;
@@ -149,13 +152,18 @@ const TiptapEditor = ({ initialContent, onUpdate, onStartComment }) => {
     const handleEditorTransaction = () => {
       console.log('Editor transaction occurred');
       updateStats();
+      const newContent = editor.getHTML();
+      if (onUpdate && newContent !== lastContent.current) {
+        onUpdate(newContent);
+        lastContent.current = newContent;
+      }
     };
 
     const handleScroll = () => {
       updatePageNumbers();
     };
 
-    editorContentRef.current?.addEventListener('scroll', handleScroll);
+    editorWrapperRef.current?.addEventListener('scroll', handleScroll);
     editor.on('transaction', handleEditorTransaction); // Use transaction for all updates
 
     // Initial update
@@ -163,7 +171,7 @@ const TiptapEditor = ({ initialContent, onUpdate, onStartComment }) => {
     updatePageNumbers(); // Ensure page numbers are updated on initial load
 
     return () => {
-      editorContentRef.current?.removeEventListener('scroll', handleScroll);
+      editorWrapperRef.current?.removeEventListener('scroll', handleScroll);
       editor.off('transaction', handleEditorTransaction); // Cleanup
     };
   }, [editor, onUpdate]);
@@ -192,6 +200,8 @@ const TiptapEditor = ({ initialContent, onUpdate, onStartComment }) => {
   const handleCloseCitationModal = () => {
     setShowCitationModal(false);
   };
+
+  
 
   return (
     <div className="flex flex-col h-full bg-gray-100">
@@ -256,7 +266,7 @@ const TiptapEditor = ({ initialContent, onUpdate, onStartComment }) => {
       <div className="sticky top-0 z-10">
         <Ribbon editor={editor} setShowCitationModal={setShowCitationModal} setShowBibliography={setShowBibliography} showBibliography={showBibliography} setIsSuggesting={setIsSuggesting} isSuggesting={isSuggesting} />
       </div>
-      <div className="flex-grow overflow-auto p-8 bg-[#F3F3F3]" ref={editorContentRef}>
+      <div className="flex-grow overflow-auto p-8 bg-[#F3F3F3]" ref={editorWrapperRef}>
         <div className="page-container w-[8.5in] min-h-[11in] mx-auto">
           <EditorContent editor={editor} />
         </div>

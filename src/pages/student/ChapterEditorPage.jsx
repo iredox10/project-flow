@@ -100,7 +100,7 @@ const CommentCard = ({ comment, activeCommentId, onCardClick, addReply, onHighli
     )
 }
 
-const StudentChapterEditorPage = () => {
+const ChapterEditorPage = () => {
     const { projectId, chapterId } = useParams();
     const { currentUser } = useAuth();
     const navigate = useNavigate();
@@ -115,22 +115,28 @@ const StudentChapterEditorPage = () => {
     const [notification, setNotification] = useState({ isOpen: false, title: '', message: '', type: 'success' });
     const [showVersionHistory, setShowVersionHistory] = useState(false);
     const [versions, setVersions] = useState([]);
-    const editorRef = useRef(null);
 
     const saveContent = useCallback(
         debounce(async (content) => {
+            console.log('Attempting to save content...');
             if (chapterId) {
                 const chapterRef = doc(db, "chapters", chapterId);
-                // First, update the main chapter content
-                await updateDoc(chapterRef, { content });
+                try {
+                    // First, update the main chapter content
+                    await updateDoc(chapterRef, { content });
 
-                // Then, add a new version to the subcollection
-                const versionsCollectionRef = collection(db, "chapters", chapterId, "versions");
-                await addDoc(versionsCollectionRef, {
-                    content,
-                    timestamp: serverTimestamp()
-                });
-                showNotification('Success', 'Changes saved automatically.', 'success');
+                    // Then, add a new version to the subcollection
+                    const versionsCollectionRef = collection(db, "chapters", chapterId, "versions");
+                    await addDoc(versionsCollectionRef, {
+                        content,
+                        timestamp: serverTimestamp()
+                    });
+                    console.log('New version saved to Firestore successfully.');
+                    showNotification('Success', 'Changes saved automatically.', 'success');
+                } catch (error) {
+                    console.error("Error saving content or version:", error);
+                    showNotification('Error', 'Failed to save changes. Please check console for details.', 'error');
+                }
             }
         }, 2000), // Increased debounce time
         [chapterId]
@@ -144,12 +150,8 @@ const StudentChapterEditorPage = () => {
             if (doc.exists()) {
                 const data = doc.data();
                 setChapter({ id: doc.id, ...data });
-                // Only set editor content from Firestore on initial load
-                if (editorRef.current === null) {
-                    const initialContent = data.content || `<h1>${data.title}</h1><p>Start writing here...</p>`;
-                    setEditorContent(initialContent);
-                    editorRef.current = initialContent;
-                }
+                const initialContent = data.content || `<h1>${data.title}</h1><p>Start writing here...</p>`;
+                setEditorContent(initialContent);
             }
             setLoading(false);
         });
@@ -164,6 +166,7 @@ const StudentChapterEditorPage = () => {
         const unsubVersions = onSnapshot(versionsQuery, (snapshot) => {
             const fetchedVersions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setVersions(fetchedVersions);
+            console.log('Fetched versions:', fetchedVersions);
         });
 
         return () => {
@@ -182,17 +185,14 @@ const StudentChapterEditorPage = () => {
         saveContent(content);
     };
 
-    const handleRestoreVersion = async (versionContent) => {
-        // Update the editor's content
-        setEditorContent(versionContent);
-        
-        // Manually trigger an update in the editor component if it doesn't automatically
-        // This might require a method passed down to TiptapEditor to force-set its content
+
+    const handleRestoreVersion = async (version) => {
+        setEditorContent(version.content);
         
         // Update the database
         if (chapterId) {
             const chapterRef = doc(db, "chapters", chapterId);
-            await updateDoc(chapterRef, { content: versionContent });
+            await updateDoc(chapterRef, { content: version.content });
         }
         
         setShowVersionHistory(false);
@@ -326,8 +326,7 @@ const StudentChapterEditorPage = () => {
                 <div className="flex-grow">
                     <div className="bg-white rounded-xl shadow-md">
                         <TiptapEditor 
-                            key={editorContent} // Force re-render when content changes
-                            initialContent={editorContent}
+                            content={editorContent}
                             onUpdate={handleEditorUpdate}
                             onStartComment={() => {}} // Students cannot create new comments
                         />
@@ -357,4 +356,4 @@ const StudentChapterEditorPage = () => {
     );
 };
 
-export default StudentChapterEditorPage;
+export default ChapterEditorPage;
