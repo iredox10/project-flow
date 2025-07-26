@@ -1,0 +1,41 @@
+
+.resizable-image-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.resizable-image-wrapper.selected {
+  outline: 2px solid #007bff;
+}
+
+.resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background-color: #007bff;
+  border: 1px solid #fff;
+}
+
+.resize-handle.tl {
+  top: -5px;
+  left: -5px;
+  cursor: nwse-resize;
+}
+
+.resize-handle.tr {
+  top: -5px;
+  right: -5px;
+  cursor: nesw-resize;
+}
+
+.resize-handle.bl {
+  bottom: -5px;
+  left: -5px;
+  cursor: nesw-resize;
+}
+
+.resize-handle.br {
+  bottom: -5px;
+  right: -5px;
+  cursor: nwse-resize;
+}

@@ -3,11 +3,11 @@ import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext'; // Import the provider
 // Page Imports
-import LandingPage from './pages/LandingPage';
-// Student Pages
 import StudentDashboard from './pages/student/StudentDashboard';
-import ProposalPage from './pages/student/ProposalPage';
+import LandingPage from './pages/LandingPage';
 import MyProjectPage from './pages/student/MyProjectPage';
+import ProposalPage from './pages/student/ProposalPage';
+import AnnouncementsPage from './pages/AnnouncementsPage';
 import StudentChapterEditorPage from './pages/student/ChapterEditorPage';
 import ProfilePage from './pages/student/ProfilePage';
 import StudentMessagesPage from './pages/student/MessagePage';
@@ -44,6 +44,7 @@ function App() {
           <Route path="/student/project/:projectId/chapter/:chapterId" element={<StudentChapterEditorPage />} />
           <Route path="/student/profile" element={<ProfilePage />} />
           <Route path="/student/messages" element={<StudentMessagesPage />} />
+          <Route path="/student/announcements" element={<AnnouncementsPage />} />
 
           {/* --- Admin Routes --- */}
           <Route path="/admin/dashboard" element={<AdminDashboard />} />

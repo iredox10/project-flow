@@ -82,7 +82,7 @@ const CommentCard = ({ comment, activeCommentId, onCardClick, addReply, deleteCo
   )
 }
 
-const SupervisorChapterEditorPage = () => {
+const ChapterEditorPage = () => {
   const { projectId, chapterId } = useParams();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -108,7 +108,10 @@ const SupervisorChapterEditorPage = () => {
   );
 
   useEffect(() => {
-    if (!chapterId) return;
+    if (!chapterId) {
+      setLoading(false);
+      return;
+    }
 
     const chapterRef = doc(db, "chapters", chapterId);
     const unsubChapter = onSnapshot(chapterRef, (doc) => {
@@ -116,8 +119,10 @@ const SupervisorChapterEditorPage = () => {
         const data = doc.data();
         setChapter({ id: doc.id, ...data });
         setEditorContent(data.content || `<h1>${data.title}</h1><p>Start writing here...</p>`);
+        setLoading(false); // Move setLoading to after content is set
+      } else {
+        setLoading(false); // Also handle case where doc doesn't exist
       }
-      setLoading(false);
     });
 
     const commentsQuery = query(collection(db, "comments"), where("chapterId", "==", chapterId));
@@ -232,12 +237,20 @@ const SupervisorChapterEditorPage = () => {
 
       <div className="flex flex-col md:flex-row gap-8">
         <div className="flex-grow">
-          <div className="bg-white rounded-xl shadow-md">
-            <TiptapEditor
-              initialContent={editorContent}
-              onUpdate={handleEditorUpdate}
-              onStartComment={handleStartComment}
-            />
+          <div className="bg-white rounded-xl shadow-md min-h-[500px]">
+            {/* Only render the editor when loading is false AND editorContent is not an empty string */}
+            {!loading && editorContent ? (
+              <TiptapEditor
+                content={editorContent}
+                onUpdate={handleEditorUpdate}
+                onStartComment={handleStartComment}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full p-8">
+                <FiLoader className="animate-spin text-teal-500" size={32} />
+                <p className="ml-4 text-gray-500">Loading Student's Work...</p>
+              </div>
+            )}
           </div>
         </div>
         <div className="w-full md:w-80 lg:w-96 flex-shrink-0">
@@ -270,4 +283,4 @@ const SupervisorChapterEditorPage = () => {
   );
 };
 
-export default SupervisorChapterEditorPage;
+export default ChapterEditorPage;

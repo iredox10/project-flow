@@ -57,11 +57,20 @@ const AdminDashboard = () => {
 
   // Calculate stats based on live data
   const stats = useMemo(() => {
+    const supervisors = users.filter(u => u.role === 'supervisor');
+    const students = users.filter(u => u.role === 'student');
+
+    const supervisorWorkload = supervisors.map(supervisor => {
+      const assignedStudents = students.filter(s => s.assignedSupervisorId === supervisor.id).length;
+      return { ...supervisor, studentCount: assignedStudents };
+    }).sort((a, b) => b.studentCount - a.studentCount); // Sort by student count
+
     return {
-      totalStudents: users.filter(u => u.role === 'student').length,
-      totalSupervisors: users.filter(u => u.role === 'supervisor').length,
+      totalStudents: students.length,
+      totalSupervisors: supervisors.length,
       projectsInProgress: projects.filter(p => p.status === 'approved').length,
       pendingProposals: projects.filter(p => p.status === 'pending').length,
+      supervisorWorkload,
     }
   }, [users, projects]);
 
@@ -102,16 +111,35 @@ const AdminDashboard = () => {
         />
       </div>
 
-      {/* Quick Actions */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">Quick Actions</h2>
-        <div className="flex flex-wrap gap-4">
-          <Link to="/admin/users" className="bg-purple-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-purple-700 transition-colors">
-            Manage All Users
-          </Link>
-          <Link to="/admin/assign-supervisor" className="bg-gray-200 text-gray-800 px-5 py-2.5 rounded-lg font-semibold hover:bg-gray-300 transition-colors">
-            Assign Supervisors
-          </Link>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Supervisor Workload */}
+        <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Supervisor Workload</h2>
+          <div className="space-y-3">
+            {loading ? (
+              <div className="text-center p-4"><FiLoader className="animate-spin mx-auto" /></div>
+            ) : (
+              stats.supervisorWorkload.map(supervisor => (
+                <div key={supervisor.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <p className="font-semibold text-gray-700">{supervisor.name}</p>
+                  <p className="text-lg font-bold text-gray-900">{supervisor.studentCount} students</p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Quick Actions</h2>
+          <div className="flex flex-col gap-4">
+            <Link to="/admin/users" className="text-center bg-purple-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-purple-700 transition-colors">
+              Manage All Users
+            </Link>
+            <Link to="/admin/assign-supervisor" className="text-center bg-gray-200 text-gray-800 px-5 py-2.5 rounded-lg font-semibold hover:bg-gray-300 transition-colors">
+              Assign Supervisors
+            </Link>
+          </div>
         </div>
       </div>
 

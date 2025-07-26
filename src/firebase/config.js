@@ -23,6 +23,7 @@ import {
   updateDoc,
   deleteDoc,
   getDoc,
+  getDocs,
   writeBatch,
   serverTimestamp
 } from "firebase/firestore";
@@ -71,6 +72,7 @@ export {
   updateDoc,
   deleteDoc,
   getDoc,
+  getDocs,
   writeBatch,
   createUserWithEmailAndPassword,
   serverTimestamp,

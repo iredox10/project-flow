@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiGrid, FiFilePlus, FiBook, FiBookOpen, FiUser, FiLogOut } from 'react-icons/fi';
+import { FiGrid, FiFilePlus, FiBook, FiBookOpen, FiUser, FiLogOut, FiBell } from 'react-icons/fi';
 
 const SidebarLink = ({ to, icon, children }) => (
   <Link to={to} className="flex items-center px-4 py-3 text-gray-700 hover:bg-indigo-50 rounded-lg transition-colors duration-200">
@@ -28,7 +28,8 @@ const DashboardLayout = ({ children }) => {
           </Link>
         </div>
         <nav className="mt-6 px-4 space-y-2">
-          <SidebarLink to="/dashboard" icon={<FiGrid size={20} />}>Dashboard</SidebarLink>
+          <SidebarLink to="/student/dashboard" icon={<FiGrid size={20} />}>Dashboard</SidebarLink>
+          <SidebarLink to="/announcements" icon={<FiBell size={20} />}>Announcements</SidebarLink>
           <SidebarLink to="/proposal" icon={<FiFilePlus size={20} />}>Propose Project</SidebarLink>
           <SidebarLink to="/my-project" icon={<FiBook size={20} />}>My Project</SidebarLink>
           <SidebarLink to="/profile" icon={<FiUser size={20} />}>Profile</SidebarLink>
