@@ -3,11 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiGrid, FiFilePlus, FiBook, FiUser, FiLogOut, FiBookOpen, FiBell, FiCheckCircle, FiMessageSquare } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
-import { db, collection, query, where, onSnapshot, orderBy } from '../firebase/config';
+import { db, collection, query, where, onSnapshot, orderBy, writeBatch, doc, getDocs } from '../firebase/config';
 import { formatDistanceToNow } from 'date-fns';
 
 // --- Reusable Notification Panel Component ---
-const NotificationPanel = ({ notifications, onClose }) => {
+const NotificationPanel = ({ notifications, onClose, onMarkAllAsRead }) => {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const getIcon = (type) => {
@@ -40,7 +40,7 @@ const NotificationPanel = ({ notifications, onClose }) => {
         )) : <p className="p-4 text-sm text-gray-500 text-center">No new notifications.</p>}
       </div>
       <div className="p-2 text-center bg-gray-50 rounded-b-lg">
-        <Link to="#" className="text-sm font-medium text-blue-600 hover:underline">View all notifications</Link>
+        <Link to="#" onClick={onMarkAllAsRead} className="text-sm font-medium text-blue-600 hover:underline">View all notifications</Link>
       </div>
     </div>
   )
@@ -107,6 +107,23 @@ const StudentLayout = ({ children }) => {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
+  const handleMarkAllAsRead = async () => {
+    if (!currentUser) return;
+
+    const batch = writeBatch(db);
+    const q = query(collection(db, 'announcements'), where('readBy', 'not-in', [currentUser.uid]));
+    const querySnapshot = await getDocs(q);
+
+    querySnapshot.forEach(docSnap => {
+      const docRef = doc(db, 'announcements', docSnap.id);
+      const currentReadBy = docSnap.data().readBy || [];
+      batch.update(docRef, { readBy: [...currentReadBy, currentUser.uid] });
+    });
+
+    await batch.commit();
+    setNotificationsOpen(false); // Close panel after marking as read
+  };
+
   const handleLogout = () => navigate('/');
 
   return (
@@ -151,7 +168,7 @@ const StudentLayout = ({ children }) => {
                 </span>
               )}
             </button>
-            {notificationsOpen && <NotificationPanel notifications={notifications} onClose={() => setNotificationsOpen(false)} />}
+            {notificationsOpen && <NotificationPanel notifications={notifications} onClose={() => setNotificationsOpen(false)} onMarkAllAsRead={handleMarkAllAsRead} />}
           </div>
         </header>
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-8">

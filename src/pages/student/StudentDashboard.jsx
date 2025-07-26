@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { db, collection, query, where, onSnapshot, doc, getDoc, orderBy } from '../../firebase/config';
 import { limit } from 'firebase/firestore';
 import { format, formatDistanceToNow } from 'date-fns';
-import Announcements from '../../components/Announcements';
+
 
 // --- Reusable Stat Card Component ---
 const StatCard = ({ icon, title, value, color, loading }) => (
@@ -144,16 +144,7 @@ const StudentDashboard = () => {
           </div>
       ) : (
         <>
-            <div className="mb-8 bg-white p-6 rounded-lg shadow-md">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4">Project Progress</h2>
-                <div className="w-full bg-gray-200 rounded-full h-4">
-                    <div 
-                        className="bg-blue-600 h-4 rounded-full transition-all duration-500" 
-                        style={{ width: `${stats.progressPercentage}%` }}
-                    ></div>
-                </div>
-                <p className="text-right text-sm text-gray-600 mt-2">{stats.progressPercentage}% Complete</p>
-            </div>
+            
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <StatCard icon={<FiFileText size={24} className="text-blue-500"/>} title="Chapters Complete" value={stats.chaptersSubmitted} color="bg-blue-100" loading={loading} />
@@ -203,9 +194,7 @@ const StudentDashboard = () => {
                     )}
                 </div>
             </div>
-            <div className="mt-8">
-                <Announcements />
-            </div>
+            
         </>
       )}
     </StudentLayout>
