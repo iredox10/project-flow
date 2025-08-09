@@ -87,6 +87,7 @@ const SupervisorLayout = ({ children }) => {
         <div className="text-center mb-6"><h3 className="text-lg font-semibold text-gray-800">Supervisor Panel</h3></div>
         <nav className="mt-6 px-4 space-y-2">
           <SidebarLink to="/supervisor/dashboard" icon={<FiGrid size={20} />}>Dashboard</SidebarLink>
+          <SidebarLink to="/announcements" icon={<FiBell size={20} />}>Announcements</SidebarLink>
           <SidebarLink to="/supervisor/proposals" icon={<FiFilePlus size={20} />}>Proposals</SidebarLink>
           <SidebarLink to="/supervisor/projects" icon={<FiFileText size={20} />}>All Projects</SidebarLink>
           <SidebarLink to="/supervisor/messages" icon={<FiMessageSquare size={20} />}>Messages</SidebarLink>

@@ -1,48 +1,54 @@
 
-/*
- * ===============================================================
- * FILE: src/components/tiptapEditor/TableTab.jsx
- * ===============================================================
- */
 import React from 'react';
 import {
   RiMergeCellsHorizontal, RiSplitCellsHorizontal, RiDeleteBin6Line,
+  RiInsertRowTop, RiInsertRowBottom, RiInsertColumnLeft, RiInsertColumnRight,
+  RiDeleteRow, RiDeleteColumn
 } from 'react-icons/ri';
 
-const SmallButton = ({ action, label, editor, name }) => (
-  <button onClick={action} title={label} className="text-xs px-2 py-1 rounded hover:bg-gray-200 disabled:opacity-50" disabled={!editor.can()[name]}>
-    {label}
-  </button>
-);
-
-const TableRibbonButton = ({ action, icon: Icon, label, name, editor }) => (
-  <button onClick={action} className={`p-2 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed ${editor.isActive(name) ? 'bg-gray-200 text-teal-600' : 'text-gray-600'}`} title={label} disabled={!editor.can()[name]}>
-    <Icon size={18} />
+const RibbonButton = ({ action, icon: Icon, label, editor, name }) => (
+  <button
+    onClick={action}
+    className={`p-1 rounded hover:bg-gray-200 flex flex-col items-center justify-center w-20 h-20 text-gray-700'}`}
+    title={label}
+    disabled={editor && !editor.can()[name] ? true : false}
+  >
+    <Icon size={24} />
+    <span className="text-xs mt-1">{label}</span>
   </button>
 );
 
 const TableTab = ({ editor }) => {
   if (!editor) return null;
+
   return (
-    <div className="flex flex-wrap items-center gap-4">
-      <div className="flex items-center gap-1 border-r pr-4">
-        <SmallButton editor={editor} action={() => editor.chain().focus().addColumnBefore().run()} label="Add Col Before" name="addColumnBefore" />
-        <SmallButton editor={editor} action={() => editor.chain().focus().addColumnAfter().run()} label="Add Col After" name="addColumnAfter" />
-        <SmallButton editor={editor} action={() => editor.chain().focus().deleteColumn().run()} label="Delete Column" name="deleteColumn" />
+    <div className="flex items-start gap-4 p-2">
+      <div className="flex flex-col items-center">
+        <div className="flex">
+          <RibbonButton editor={editor} action={() => editor.chain().focus().addRowBefore().run()} icon={RiInsertRowTop} label="Insert Row Above" name="addRowBefore" />
+          <RibbonButton editor={editor} action={() => editor.chain().focus().addRowAfter().run()} icon={RiInsertRowBottom} label="Insert Row Below" name="addRowAfter" />
+          <RibbonButton editor={editor} action={() => editor.chain().focus().addColumnBefore().run()} icon={RiInsertColumnLeft} label="Insert Left" name="addColumnBefore" />
+          <RibbonButton editor={editor} action={() => editor.chain().focus().addColumnAfter().run()} icon={RiInsertColumnRight} label="Insert Right" name="addColumnAfter" />
+        </div>
+        <span className="text-xs mt-1 text-gray-500">Insert</span>
       </div>
-      <div className="flex items-center gap-1 border-r pr-4">
-        <SmallButton editor={editor} action={() => editor.chain().focus().addRowBefore().run()} label="Add Row Before" name="addRowBefore" />
-        <SmallButton editor={editor} action={() => editor.chain().focus().addRowAfter().run()} label="Add Row After" name="addRowAfter" />
-        <SmallButton editor={editor} action={() => editor.chain().focus().deleteRow().run()} label="Delete Row" name="deleteRow" />
+      <div className="flex flex-col items-center">
+        <div className="flex">
+          <RibbonButton editor={editor} action={() => editor.chain().focus().deleteRow().run()} icon={RiDeleteRow} label="Delete Row" name="deleteRow" />
+          <RibbonButton editor={editor} action={() => editor.chain().focus().deleteColumn().run()} icon={RiDeleteColumn} label="Delete Column" name="deleteColumn" />
+          <RibbonButton editor={editor} action={() => editor.chain().focus().deleteTable().run()} icon={RiDeleteBin6Line} label="Delete Table" name="deleteTable" />
+        </div>
+        <span className="text-xs mt-1 text-gray-500">Delete</span>
       </div>
-      <div className="flex items-center gap-1 border-r pr-4">
-        <TableRibbonButton editor={editor} action={() => editor.chain().focus().mergeCells().run()} icon={RiMergeCellsHorizontal} label="Merge Cells" name="mergeCells" />
-        <TableRibbonButton editor={editor} action={() => editor.chain().focus().splitCell().run()} icon={RiSplitCellsHorizontal} label="Split Cell" name="splitCell" />
-      </div>
-      <div className="flex items-center gap-1">
-        <TableRibbonButton editor={editor} action={() => editor.chain().focus().deleteTable().run()} icon={RiDeleteBin6Line} label="Delete Table" name="deleteTable" />
+      <div className="flex flex-col items-center">
+        <div className="flex">
+          <RibbonButton editor={editor} action={() => editor.chain().focus().mergeCells().run()} icon={RiMergeCellsHorizontal} label="Merge Cells" name="mergeCells" />
+          <RibbonButton editor={editor} action={() => editor.chain().focus().splitCell().run()} icon={RiSplitCellsHorizontal} label="Split Cell" name="splitCell" />
+        </div>
+        <span className="text-xs mt-1 text-gray-500">Merge</span>
       </div>
     </div>
-  )
+  );
 };
+
 export default TableTab;
